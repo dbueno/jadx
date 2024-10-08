@@ -14,6 +14,14 @@ allprojects {
 	version = jadxVersion
 
 	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+
+	//if (!JavaVersion.current().isJava8()) {
+	//	String message = "ERROR: Java 1.8 required but " +
+	//					  JavaVersion.current() +
+	//					  " found. Change your JAVA_HOME environment variable.";
+	//	throw new IllegalStateException(message);
+	//}
 
 	compileJava {
 		options.encoding = "UTF-8"
