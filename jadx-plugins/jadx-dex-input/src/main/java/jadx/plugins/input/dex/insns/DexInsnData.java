@@ -25,6 +25,7 @@ public class DexInsnData implements InsnData {
 	private int length;
 	private int insnStart;
 
+	private String dexFile;
 	private int offset;
 	private int[] argsReg = new int[5];
 	private int regsCount;
@@ -50,6 +51,11 @@ public class DexInsnData implements InsnData {
 	@Override
 	public int getOffset() {
 		return offset;
+	}
+
+	@Override
+	public String getFile() {
+		return dexFile;
 	}
 
 	@Override
@@ -173,6 +179,7 @@ public class DexInsnData implements InsnData {
 		this.regsCount = regsCount;
 	}
 
+	@Override
 	public int getLength() {
 		return length;
 	}
@@ -203,6 +210,10 @@ public class DexInsnData implements InsnData {
 
 	public void setDecoded(boolean decoded) {
 		this.decoded = decoded;
+	}
+
+	public void setFile(String file) {
+		this.dexFile = file;
 	}
 
 	public void setOffset(int offset) {

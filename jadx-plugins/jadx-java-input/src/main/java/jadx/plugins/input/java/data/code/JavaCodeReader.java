@@ -64,6 +64,7 @@ public class JavaCodeReader implements ICodeReader {
 			insn.setDecoded(false);
 			insn.setOffset(offset);
 			insn.setInsnStart(reader.getOffset());
+			insn.setFile(clsData.getInputFileName());
 
 			int opcode = reader.readU1();
 			JavaInsnInfo insnInfo = JavaInsnsRegister.get(opcode);
@@ -79,6 +80,7 @@ public class JavaCodeReader implements ICodeReader {
 			insn.setPayload(null);
 
 			state.onInsn(offset);
+			insn.setLength(insnInfo.getPayloadSize() + 1);
 			insnConsumer.accept(insn);
 
 			int payloadSize = insn.getPayloadSize();

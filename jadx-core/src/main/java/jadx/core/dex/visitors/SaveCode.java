@@ -1,7 +1,10 @@
 package jadx.core.dex.visitors;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +13,7 @@ import jadx.api.ICodeInfo;
 import jadx.api.JadxArgs;
 import jadx.api.plugins.utils.ZipSecurity;
 import jadx.core.dex.attributes.AFlag;
+import jadx.core.dex.attributes.nodes.BytecodeInfoAttr;
 import jadx.core.dex.nodes.ClassNode;
 import jadx.core.dex.nodes.RootNode;
 import jadx.core.utils.exceptions.JadxRuntimeException;
@@ -40,6 +44,49 @@ public class SaveCode {
 		}
 		String fileName = cls.getClassInfo().getAliasFullPath() + getFileExtension(cls.root());
 		save(codeStr, dir, fileName);
+		String sarifFileName = cls.getClassInfo().getAliasFullPath() + ".json";
+		saveDecompMap(code, new File(dir, ".maps"), sarifFileName, fileName);
+	}
+
+	private static String formatBytecodeInfo(BytecodeInfoAttr bc) {
+		return "  \"binary\": [{\n" +
+				"    \"physicalLocation\": {\n" +
+				"      \"artifactLocation\": { \"uri\": \"" + bc.getFile() + "\", \"uriBaseId\": \"BINROOT\" },\n" +
+				"      \"region\": { \"byteOffset\": " + bc.getOffset() + ", \"byteLength\": " + bc.getLength() + " }\n" +
+				"    }\n" +
+				"  }]";
+	}
+
+	private static String formatDecompInfo(String filename, int line) {
+		return "  \"source\": [{\n" +
+				"    \"physicalLocation\": {\n" +
+				"      \"artifactLocation\": { \"uri\": \"" + filename + "\", \"uriBaseId\": \"SRCROOT\" },\n" +
+				"      \"region\": { \"startLine\": " + line + " }\n" +
+				"    }\n" +
+				"  }]";
+	}
+
+	public static void saveDecompMap(ICodeInfo code, File dir, String outFile, String javaFile) {
+		File filePath = FileUtils.prepareFile(new File(dir, outFile));
+		String contents =
+				code.getCodeMetadata().getDecompMap().entrySet().stream()
+						.map(entry -> entry.getValue().stream()
+								.map(annot -> "{\n" +
+										formatBytecodeInfo((BytecodeInfoAttr) annot) + ",\n" +
+										formatDecompInfo(javaFile, entry.getKey()) + "\n}")
+								.collect(Collectors.joining(", ")))
+						.collect(Collectors.joining(", "));
+		try (FileWriter fileWriter = new FileWriter(filePath)) {
+			fileWriter.write("{\n");
+			fileWriter.write("\"version\": 1,\n");
+			fileWriter.write("\"tool\": \"jadx\",\n");
+			fileWriter.write("\"mappings\": [\n");
+			fileWriter.write(contents);
+			fileWriter.write("\n]\n");
+			fileWriter.write("}");
+		} catch (IOException e) {
+			System.err.println("An error occurred while writing to the file: " + e.getMessage());
+		}
 	}
 
 	public static void save(String code, File dir, String fileName) {

@@ -94,4 +94,6 @@ public enum AFlag {
 	CLASS_UNLOADED, // class was completely unloaded
 
 	DONT_UNLOAD_CLASS, // don't unload class after code generation (only for tests and debug!)
+
+	BYTECODE_RANGE, // range of associated bytecodes
 }

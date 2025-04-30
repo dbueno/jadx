@@ -1,5 +1,6 @@
 package jadx.api.impl;
 
+import java.util.List;
 import java.util.Map;
 
 import jadx.api.ICodeInfo;
@@ -12,9 +13,10 @@ public class AnnotatedCodeInfo implements ICodeInfo {
 	private final String code;
 	private final ICodeMetadata metadata;
 
-	public AnnotatedCodeInfo(String code, Map<Integer, Integer> lineMapping, Map<Integer, ICodeAnnotation> annotations) {
+	public AnnotatedCodeInfo(String code, Map<Integer, Integer> lineMapping, Map<Integer, ICodeAnnotation> annotations,
+			Map<Integer, List<ICodeAnnotation>> decompAnnotations) {
 		this.code = code;
-		this.metadata = CodeMetadataStorage.build(lineMapping, annotations);
+		this.metadata = CodeMetadataStorage.build(lineMapping, annotations, decompAnnotations);
 	}
 
 	@Override

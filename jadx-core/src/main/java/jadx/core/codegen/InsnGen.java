@@ -16,6 +16,7 @@ import jadx.api.metadata.annotations.VarNode;
 import jadx.api.plugins.input.data.MethodHandleType;
 import jadx.core.dex.attributes.AFlag;
 import jadx.core.dex.attributes.AType;
+import jadx.core.dex.attributes.nodes.BytecodeInfoAttr;
 import jadx.core.dex.attributes.nodes.FieldReplaceAttr;
 import jadx.core.dex.attributes.nodes.GenericInfoAttr;
 import jadx.core.dex.attributes.nodes.LoopLabelAttr;
@@ -289,6 +290,10 @@ public class InsnGen {
 	}
 
 	private void makeInsnBody(ICodeWriter code, InsnNode insn, Set<Flags> state) throws CodegenException {
+		BytecodeInfoAttr bc;
+		if ((bc = insn.get(AType.BYTECODE_INFO)) != null) {
+			code.attachDecompAnnotation(bc);
+		}
 		switch (insn.getType()) {
 			case CONST_STR:
 				String str = ((ConstStringNode) insn).getString();

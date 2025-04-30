@@ -14,6 +14,7 @@ import jadx.api.plugins.input.insns.custom.ICustomPayload;
 import jadx.api.plugins.input.insns.custom.ISwitchPayload;
 import jadx.core.Consts;
 import jadx.core.dex.attributes.AType;
+import jadx.core.dex.attributes.nodes.BytecodeInfoAttr;
 import jadx.core.dex.attributes.nodes.JadxError;
 import jadx.core.dex.info.FieldInfo;
 import jadx.core.dex.info.MethodInfo;
@@ -54,6 +55,7 @@ public class InsnDecoder {
 				insn.addAttr(AType.JADX_ERROR, new JadxError("decode failed: " + e.getMessage(), e));
 			}
 			insn.setOffset(offset);
+			insn.addAttr(new BytecodeInfoAttr(rawInsn.getFile(), rawInsn.getFileOffset(), rawInsn.getLength()));
 			instructions[offset] = insn;
 		});
 		return instructions;

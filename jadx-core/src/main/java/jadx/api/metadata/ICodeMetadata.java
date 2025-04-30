@@ -1,5 +1,6 @@
 package jadx.api.metadata;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 
@@ -56,4 +57,6 @@ public interface ICodeMetadata {
 	Map<Integer, ICodeAnnotation> getAsMap();
 
 	Map<Integer, Integer> getLineMapping();
+
+	Map<Integer, List<ICodeAnnotation>> getDecompMap();
 }

@@ -213,6 +213,11 @@ public class SimpleCodeWriter implements ICodeWriter {
 	}
 
 	@Override
+	public void attachDecompAnnotation(ICodeAnnotation obj) {
+		// no op
+	}
+
+	@Override
 	public void attachSourceLine(int sourceLine) {
 		// no op
 	}

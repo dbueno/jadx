@@ -10,6 +10,7 @@ public interface ICodeAnnotation {
 		VAR_REF,
 		DECLARATION,
 		OFFSET,
+		BYTECODE,
 		END // class or method body end
 	}
 

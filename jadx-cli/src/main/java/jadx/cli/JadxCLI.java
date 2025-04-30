@@ -5,8 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import jadx.api.JadxArgs;
 import jadx.api.JadxDecompiler;
+import jadx.api.impl.AnnotatedCodeWriter;
 import jadx.api.impl.NoOpCodeCache;
-import jadx.api.impl.SimpleCodeWriter;
 import jadx.cli.LogHelper.LogLevelEnum;
 import jadx.core.utils.exceptions.JadxArgsValidateException;
 import jadx.core.utils.files.FileUtils;
@@ -43,7 +43,8 @@ public class JadxCLI {
 		LogHelper.setLogLevelsForLoadingStage();
 		JadxArgs jadxArgs = cliArgs.toJadxArgs();
 		jadxArgs.setCodeCache(new NoOpCodeCache());
-		jadxArgs.setCodeWriterProvider(SimpleCodeWriter::new);
+		// Use annotated code write to enable decompiler source map
+		jadxArgs.setCodeWriterProvider(AnnotatedCodeWriter::new);
 		try (JadxDecompiler jadx = new JadxDecompiler(jadxArgs)) {
 			jadx.load();
 			if (checkForErrors(jadx)) {

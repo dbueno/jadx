@@ -2,6 +2,8 @@ package jadx.api.metadata.impl;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
@@ -18,27 +20,33 @@ import jadx.core.utils.Utils;
 
 public class CodeMetadataStorage implements ICodeMetadata {
 
-	public static ICodeMetadata build(Map<Integer, Integer> lines, Map<Integer, ICodeAnnotation> map) {
+	public static ICodeMetadata build(Map<Integer, Integer> lines, Map<Integer, ICodeAnnotation> map,
+			Map<Integer, List<ICodeAnnotation>> dmap) {
 		if (map.isEmpty() && lines.isEmpty()) {
 			return ICodeMetadata.EMPTY;
 		}
 		Comparator<Integer> reverseCmp = Comparator.comparingInt(Integer::intValue).reversed();
 		NavigableMap<Integer, ICodeAnnotation> navMap = new TreeMap<>(reverseCmp);
 		navMap.putAll(map);
-		return new CodeMetadataStorage(lines, navMap);
+		Map<Integer, List<ICodeAnnotation>> decompMap = new HashMap<>();
+		decompMap.putAll(dmap);
+		return new CodeMetadataStorage(lines, navMap, decompMap);
 	}
 
 	public static ICodeMetadata empty() {
-		return new CodeMetadataStorage(Collections.emptyMap(), Collections.emptyNavigableMap());
+		return new CodeMetadataStorage(Collections.emptyMap(), Collections.emptyNavigableMap(), Collections.emptyMap());
 	}
 
 	private final Map<Integer, Integer> lines;
 
 	private final NavigableMap<Integer, ICodeAnnotation> navMap;
+	private final Map<Integer, List<ICodeAnnotation>> decompMap;
 
-	private CodeMetadataStorage(Map<Integer, Integer> lines, NavigableMap<Integer, ICodeAnnotation> navMap) {
+	private CodeMetadataStorage(Map<Integer, Integer> lines, NavigableMap<Integer, ICodeAnnotation> navMap,
+			Map<Integer, List<ICodeAnnotation>> decompMap) {
 		this.lines = lines;
 		this.navMap = navMap;
+		this.decompMap = decompMap;
 	}
 
 	@Override
@@ -141,6 +149,11 @@ public class CodeMetadataStorage implements ICodeMetadata {
 	@Override
 	public Map<Integer, Integer> getLineMapping() {
 		return lines;
+	}
+
+	@Override
+	public Map<Integer, List<ICodeAnnotation>> getDecompMap() {
+		return decompMap;
 	}
 
 	@Override

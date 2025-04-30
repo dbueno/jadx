@@ -61,7 +61,7 @@ public class CodeMetadataAdapter {
 			in.skipBytes(JADX_METADATA_HEADER.length);
 			Map<Integer, Integer> lines = readLines(in);
 			Map<Integer, ICodeAnnotation> annotations = readAnnotations(in);
-			return new AnnotatedCodeInfo(code, lines, annotations);
+			return new AnnotatedCodeInfo(code, lines, annotations, Collections.emptyMap());
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to parse code annotations", e);
 		}

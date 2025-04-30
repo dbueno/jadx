@@ -24,6 +24,7 @@ public class JavaInsnData implements InsnData {
 	private boolean decoded;
 	private int opcodeUnit;
 	private int payloadSize;
+	private String filename;
 	private int insnStart;
 	private int offset;
 	private int regsCount;
@@ -32,6 +33,7 @@ public class JavaInsnData implements InsnData {
 	private long literal;
 	private int target;
 	private int index;
+	private int length;
 	@Nullable
 	private ICustomPayload payload;
 
@@ -62,8 +64,22 @@ public class JavaInsnData implements InsnData {
 	}
 
 	@Override
+	public String getFile() {
+		return filename;
+	}
+
+	@Override
 	public int getFileOffset() {
 		return insnStart;
+	}
+
+	@Override
+	public int getLength() {
+		return length;
+	}
+
+	public void setLength(int length) {
+		this.length = length;
 	}
 
 	@Override
@@ -205,6 +221,10 @@ public class JavaInsnData implements InsnData {
 
 	public void setInsnStart(int insnStart) {
 		this.insnStart = insnStart;
+	}
+
+	public void setFile(String file) {
+		this.filename = file;
 	}
 
 	public void setOffset(int offset) {

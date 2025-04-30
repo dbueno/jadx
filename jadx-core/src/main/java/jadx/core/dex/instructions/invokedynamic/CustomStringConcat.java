@@ -11,6 +11,7 @@ import jadx.api.plugins.input.data.annotations.EncodedValue;
 import jadx.api.plugins.input.insns.InsnData;
 import jadx.core.dex.attributes.AFlag;
 import jadx.core.dex.attributes.AType;
+import jadx.core.dex.attributes.nodes.BytecodeInfoAttr;
 import jadx.core.dex.attributes.nodes.JadxError;
 import jadx.core.dex.instructions.ConstClassNode;
 import jadx.core.dex.instructions.ConstStringNode;
@@ -58,6 +59,8 @@ public class CustomStringConcat {
 			if (resReg != -1) {
 				concat.setResult(InsnArg.reg(resReg, ArgType.STRING));
 			}
+			// length is probably wrong
+			concat.addAttr(new BytecodeInfoAttr(insn.getFile(), insn.getFileOffset(), insn.getLength()));
 			return concat;
 		} catch (Exception e) {
 			InsnNode nop = new InsnNode(InsnType.NOP, 0);

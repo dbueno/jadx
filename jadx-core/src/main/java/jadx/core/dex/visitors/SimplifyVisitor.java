@@ -12,6 +12,7 @@ import jadx.core.Consts;
 import jadx.core.codegen.TypeGen;
 import jadx.core.deobf.NameMapper;
 import jadx.core.dex.attributes.AFlag;
+import jadx.core.dex.attributes.AType;
 import jadx.core.dex.info.ClassInfo;
 import jadx.core.dex.info.FieldInfo;
 import jadx.core.dex.info.MethodInfo;
@@ -634,6 +635,7 @@ public class SimplifyVisitor extends AbstractVisitor {
 			for (int i = 1; i < argsCount; i++) {
 				concat.addArg(wrap.getArg(i));
 			}
+			concat.copyAttributesFrom(insn);
 			return ArithNode.oneArgOp(ArithOp.ADD, fArg, InsnArg.wrapArg(concat));
 		} catch (Exception e) {
 			LOG.debug("Can't convert field arith insn: {}, mth: {}", insn, mth, e);

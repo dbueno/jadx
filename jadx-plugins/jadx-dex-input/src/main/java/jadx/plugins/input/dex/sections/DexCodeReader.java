@@ -67,6 +67,7 @@ public class DexCodeReader implements ICodeReader {
 			int insnStart = in.getAbsPos();
 			int opcodeUnit = in.readUShort();
 			DexInsnInfo insnInfo = DexInsnInfo.get(opcodeUnit);
+			insnData.setFile(in.getDexReader().getInputFileName());
 			insnData.setInsnStart(insnStart);
 			insnData.setOffset(offset);
 			insnData.setInsnInfo(insnInfo);

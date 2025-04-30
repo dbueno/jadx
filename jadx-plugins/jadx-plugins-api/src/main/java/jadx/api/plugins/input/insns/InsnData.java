@@ -13,7 +13,11 @@ public interface InsnData {
 
 	int getOffset(); // offset within method
 
+	String getFile();
+
 	int getFileOffset(); // offset within dex file
+
+	int getLength();
 
 	Opcode getOpcode();
 

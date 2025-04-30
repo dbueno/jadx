@@ -1,7 +1,9 @@
 package jadx.api.impl;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -19,6 +21,7 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 	private int line = 1;
 	private int offset;
 	private Map<Integer, ICodeAnnotation> annotations = Collections.emptyMap();
+	private Map<Integer, List<ICodeAnnotation>> decompAnnotations = Collections.emptyMap();
 	private Map<Integer, Integer> lineMap = Collections.emptyMap();
 
 	public AnnotatedCodeWriter() {
@@ -76,6 +79,8 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 		for (Map.Entry<Integer, Integer> entry : code.lineMap.entrySet()) {
 			attachSourceLine(line + entry.getKey(), entry.getValue());
 		}
+		code.decompAnnotations.entrySet().stream()
+				.forEach(entry -> entry.getValue().stream().forEach(annot -> attachDecompAnnotation(annot, line + entry.getKey())));
 		line += code.line;
 		offset = code.offset;
 		buf.append(code.buf);
@@ -130,6 +135,21 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 		attachAnnotation(obj, getLineStartPos());
 	}
 
+	@Override
+	public void attachDecompAnnotation(ICodeAnnotation obj) {
+		attachDecompAnnotation(obj, getLine());
+	}
+
+	public void attachDecompAnnotation(ICodeAnnotation obj, int line) {
+		if (obj == null) {
+			return;
+		}
+		if (decompAnnotations.isEmpty()) {
+			decompAnnotations = new HashMap<>();
+		}
+		decompAnnotations.computeIfAbsent(line, k -> new ArrayList<>()).add(obj);
+	}
+
 	private void attachAnnotation(ICodeAnnotation obj, int pos) {
 		if (annotations.isEmpty()) {
 			annotations = new HashMap<>();
@@ -159,7 +179,7 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 		validateAnnotations();
 		String code = buf.toString();
 		buf = null;
-		return new AnnotatedCodeInfo(code, lineMap, annotations);
+		return new AnnotatedCodeInfo(code, lineMap, annotations, decompAnnotations);
 	}
 
 	@Override

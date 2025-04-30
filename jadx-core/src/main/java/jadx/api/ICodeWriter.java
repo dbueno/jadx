@@ -57,6 +57,8 @@ public interface ICodeWriter {
 
 	void attachLineAnnotation(ICodeAnnotation obj);
 
+	void attachDecompAnnotation(ICodeAnnotation obj);
+
 	void attachSourceLine(int sourceLine);
 
 	ICodeInfo finish();

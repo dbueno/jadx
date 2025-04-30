@@ -19,6 +19,7 @@ import jadx.core.dex.attributes.nodes.LocalVarsDebugInfoAttr;
 import jadx.core.dex.attributes.nodes.LoopInfo;
 import jadx.core.dex.attributes.nodes.LoopLabelAttr;
 import jadx.core.dex.attributes.nodes.MethodBridgeAttr;
+import jadx.core.dex.attributes.nodes.BytecodeInfoAttr;
 import jadx.core.dex.attributes.nodes.MethodInlineAttr;
 import jadx.core.dex.attributes.nodes.MethodOverrideAttr;
 import jadx.core.dex.attributes.nodes.MethodReplaceAttr;
@@ -97,4 +98,6 @@ public final class AType<T extends IJadxAttribute> implements IJadxAttrType<T> {
 
 	// register
 	public static final AType<RegDebugInfoAttr> REG_DEBUG_INFO = new AType<>();
+
+	public static final AType<BytecodeInfoAttr> BYTECODE_INFO = new AType<>();
 }
