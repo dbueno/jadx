@@ -1,5 +1,6 @@
 package jadx.gui.plugins.context;
 
+import java.awt.Color;
 import java.awt.Container;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -8,7 +9,10 @@ import java.util.function.Predicate;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter;
 
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -231,6 +235,33 @@ public class GuiPluginContext implements JadxGuiContext {
 				}
 			}
 		});
+	}
+
+	@Override
+	@Nullable
+	public JTextArea getActiveTextArea() {
+		return getCodeArea();
+	}
+
+	@Override
+	public void addHighlight(int startCharOffset, int endCharOffset) {
+		CodeArea ca = getCodeArea();
+		if (ca != null) {
+			try {
+				ca.getHighlighter().addHighlight(startCharOffset, endCharOffset,
+						new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW));
+			} catch (BadLocationException e) {
+				// Do nothing
+			}
+		}
+	}
+
+	@Override
+	public void clearHighlights() {
+		CodeArea ca = getCodeArea();
+		if (ca != null) {
+			ca.getHighlighter().removeAllHighlights();
+		}
 	}
 
 	@Override

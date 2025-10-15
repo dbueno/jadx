@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
+import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 
 import org.jetbrains.annotations.ApiStatus;
@@ -109,6 +110,21 @@ public interface JadxGuiContext {
 	 * Reload code in all open tabs
 	 */
 	void reloadAllTabs();
+
+	/*
+	 * Returns the active text area
+	 */
+	JTextArea getActiveTextArea();
+
+	/**
+	 * Adds a highlight to specified characters of the active text area
+	 */
+	void addHighlight(int startCharOffset, int endCharOffset);
+
+	/**
+	 * Clears highlights in the active text area
+	 */
+	void clearHighlights();
 
 	/**
 	 * Save node rename in a project and run all needed UI updates
