@@ -1,10 +1,9 @@
 package jadx.gui.search.providers;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Set;
 
 import javax.swing.tree.TreeNode;
 
@@ -12,10 +11,11 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jadx.api.ICodeWriter;
 import jadx.api.ResourceFile;
 import jadx.api.ResourceType;
 import jadx.api.plugins.utils.CommonFileUtils;
+import jadx.api.resources.ResourceContentType;
+import jadx.api.utils.CodeUtils;
 import jadx.gui.jobs.Cancelable;
 import jadx.gui.search.ISearchProvider;
 import jadx.gui.search.SearchSettings;
@@ -24,14 +24,16 @@ import jadx.gui.treemodel.JResSearchNode;
 import jadx.gui.treemodel.JResource;
 import jadx.gui.treemodel.JRoot;
 import jadx.gui.ui.MainWindow;
+import jadx.gui.ui.dialog.SearchDialog;
+import jadx.gui.utils.NLS;
 
 public class ResourceSearchProvider implements ISearchProvider {
 	private static final Logger LOG = LoggerFactory.getLogger(ResourceSearchProvider.class);
 
 	private final SearchSettings searchSettings;
-	private final Set<String> extSet;
+	private final SearchDialog searchDialog;
+	private final ResourceFilter resourceFilter;
 	private final int sizeLimit;
-	private boolean anyExt;
 
 	/**
 	 * Resources queue for process. Using UI nodes to reuse loading cache
@@ -39,11 +41,20 @@ public class ResourceSearchProvider implements ISearchProvider {
 	private final Deque<JResource> resQueue;
 	private int pos;
 
-	public ResourceSearchProvider(MainWindow mw, SearchSettings searchSettings) {
+	private int loadErrors = 0;
+	private int skipBySize = 0;
+
+	public ResourceSearchProvider(MainWindow mw, SearchSettings searchSettings, SearchDialog searchDialog) {
 		this.searchSettings = searchSettings;
-		this.sizeLimit = mw.getSettings().getSrhResourceSkipSize() * 1048576;
-		this.extSet = buildAllowedFilesExtensions(mw.getSettings().getSrhResourceFileExt());
-		this.resQueue = initResQueue(mw);
+		this.resourceFilter = searchSettings.getResourceFilter();
+		this.sizeLimit = searchSettings.getResSizeLimit() * 1024 * 1024;
+		this.searchDialog = searchDialog;
+		JResource activeResource = searchSettings.getActiveResource();
+		if (activeResource != null) {
+			this.resQueue = new ArrayDeque<>(Collections.singleton(activeResource));
+		} else {
+			this.resQueue = initResQueue(mw);
+		}
 	}
 
 	@Override
@@ -82,40 +93,65 @@ public class ResourceSearchProvider implements ISearchProvider {
 		if (newPos == -1) {
 			return null;
 		}
-		int lineStart = content.lastIndexOf(ICodeWriter.NL, newPos) + ICodeWriter.NL.length();
-		int lineEnd = content.indexOf(ICodeWriter.NL, newPos + searchString.length());
-		int end = lineEnd == -1 ? content.length() : lineEnd;
-		String line = content.substring(lineStart, end);
-		this.pos = end;
-		return new JResSearchNode(resNode, line.trim(), newPos);
+		if (resNode.getContentType() == ResourceContentType.CONTENT_TEXT) {
+			int lineStart = 1 + CodeUtils.getNewLinePosBefore(content, newPos);
+			int lineEnd = CodeUtils.getNewLinePosAfter(content, newPos);
+			int end = lineEnd == -1 ? content.length() : lineEnd;
+			String line = content.substring(lineStart, end);
+			this.pos = end;
+			return new JResSearchNode(resNode, line.trim(), newPos);
+		} else {
+			int start = Math.max(0, newPos - 30);
+			int end = Math.min(newPos + 50, content.length());
+			String line = content.substring(start, end);
+			this.pos = newPos + searchString.length() + 1;
+			return new JResSearchNode(resNode, line, newPos);
+		}
 	}
 
 	private @Nullable JResource getNextResFile(Cancelable cancelable) {
 		while (true) {
 			JResource node = resQueue.peekLast();
-			if (node == null) {
-				return null;
-			}
-			try {
-				node.loadNode();
-			} catch (Exception e) {
-				LOG.error("Error load resource node: {}", node, e);
-				resQueue.removeLast();
-				continue;
-			}
-			if (cancelable.isCanceled()) {
+			if (node == null || cancelable.isCanceled()) {
 				return null;
 			}
 			if (node.getType() == JResource.JResType.FILE) {
-				if (shouldProcess(node)) {
+				if (shouldProcess(node) && loadResNode(node)) {
 					return node;
 				}
 				resQueue.removeLast();
 			} else {
 				// dir
 				resQueue.removeLast();
+				loadResNode(node);
 				addChildren(node);
 			}
+		}
+	}
+
+	private void updateProgressInfo() {
+		StringBuilder sb = new StringBuilder();
+		if (loadErrors != 0) {
+			sb.append("  ").append(NLS.str("search_dialog.resources_load_errors", loadErrors));
+		}
+		if (skipBySize != 0) {
+			sb.append("  ").append(NLS.str("search_dialog.resources_skip_by_size", skipBySize));
+		}
+		if (sb.length() != 0) {
+			sb.append("  ").append(NLS.str("search_dialog.resources_check_logs"));
+		}
+		searchDialog.updateProgressLabel(sb.toString());
+	}
+
+	private boolean loadResNode(JResource node) {
+		try {
+			node.loadNode();
+			return true;
+		} catch (Exception e) {
+			LOG.error("Error load resource node: {}", node, e);
+			loadErrors++;
+			updateProgressInfo();
+			return false;
 		}
 	}
 
@@ -137,49 +173,59 @@ public class ResourceSearchProvider implements ISearchProvider {
 		return deque;
 	}
 
-	private Set<String> buildAllowedFilesExtensions(String srhResourceFileExt) {
-		Set<String> set = new HashSet<>();
-		for (String extStr : srhResourceFileExt.split("[|.]")) {
-			String ext = extStr.trim();
-			if (!ext.isEmpty()) {
-				anyExt = ext.equals("*");
-				if (anyExt) {
-					break;
-				}
-				set.add(ext);
-			}
+	private boolean shouldProcess(JResource resNode) {
+		if (resNode.getResFile().getType() == ResourceType.ARSC) {
+			// don't check the size of generated resource table, it will also skip all subfiles
+			return resourceFilter.isAnyFile()
+					|| resourceFilter.getContentTypes().contains(ResourceContentType.CONTENT_TEXT)
+					|| resourceFilter.getExtSet().contains("xml");
 		}
-		return set;
+		if (!isAllowedFileType(resNode)) {
+			return false;
+		}
+		return isAllowedFileSize(resNode);
 	}
 
-	private boolean shouldProcess(JResource resNode) {
+	private boolean isAllowedFileType(JResource resNode) {
 		ResourceFile resFile = resNode.getResFile();
-		if (resFile.getType() == ResourceType.ARSC) {
-			// don't check size of generated resource table, it will also skip all sub files
-			return anyExt || extSet.contains("xml");
+		if (resourceFilter.isAnyFile()) {
+			return true;
 		}
-		if (!anyExt) {
-			String fileExt = CommonFileUtils.getFileExtension(resFile.getOriginalName());
-			if (fileExt == null) {
-				return false;
-			}
-			if (!extSet.contains(fileExt)) {
-				return false;
-			}
+		ResourceContentType resContentType = resNode.getContentType();
+		if (resourceFilter.getContentTypes().contains(resContentType)) {
+			return true;
 		}
-		if (sizeLimit == 0) {
+		String fileExt = CommonFileUtils.getFileExtension(resFile.getOriginalName());
+		if (fileExt != null && resourceFilter.getExtSet().contains(fileExt)) {
+			return true;
+		}
+		if (resContentType == ResourceContentType.CONTENT_UNKNOWN
+				&& resourceFilter.getContentTypes().contains(ResourceContentType.CONTENT_BINARY)) {
+			// treat unknown file type as binary
+			return true;
+		}
+		return false;
+	}
+
+	private boolean isAllowedFileSize(JResource resNode) {
+		if (sizeLimit <= 0) {
 			return true;
 		}
 		try {
 			int charsCount = resNode.getCodeInfo().getCodeStr().length();
 			long size = charsCount * 8L;
 			if (size > sizeLimit) {
-				LOG.debug("Resource search skipped because of size limit: {} res size {} bytes", resNode, size);
+				LOG.info("Resource search skipped because of size limit. Resource '{}' size {} bytes, limit: {}",
+						resNode.getName(), size, sizeLimit);
+				skipBySize++;
+				updateProgressInfo();
 				return false;
 			}
 			return true;
 		} catch (Exception e) {
 			LOG.warn("Resource load error: {}", resNode, e);
+			loadErrors++;
+			updateProgressInfo();
 			return false;
 		}
 	}

@@ -2,6 +2,7 @@ package jadx.core.dex.visitors;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -90,7 +91,7 @@ public class OverrideMethodVisitor extends AbstractVisitor {
 		for (ArgType superType : superData.getSuperTypes()) {
 			ClassNode classNode = mth.root().resolveClass(superType);
 			if (classNode != null) {
-				MethodNode ovrdMth = searchOverriddenMethod(classNode, signature);
+				MethodNode ovrdMth = searchOverriddenMethod(classNode, mth, signature);
 				if (ovrdMth != null) {
 					if (isMethodVisibleInCls(ovrdMth, cls)) {
 						overrideList.add(ovrdMth);
@@ -107,6 +108,8 @@ public class OverrideMethodVisitor extends AbstractVisitor {
 					Map<String, ClspMethod> methodsMap = clsDetails.getMethodsMap();
 					for (Map.Entry<String, ClspMethod> entry : methodsMap.entrySet()) {
 						String mthShortId = entry.getKey();
+						// do not check full signature, classpath methods can be trusted
+						// i.e. doesn't contain methods with same signature in one class
 						if (mthShortId.startsWith(signature)) {
 							overrideList.add(entry.getValue());
 							break;
@@ -130,10 +133,28 @@ public class OverrideMethodVisitor extends AbstractVisitor {
 	}
 
 	@Nullable
-	private MethodNode searchOverriddenMethod(ClassNode cls, String signature) {
+	private MethodNode searchOverriddenMethod(ClassNode cls, MethodNode mth, String signature) {
+		// search by exact full signature (with return value) to fight obfuscation (see test
+		// 'TestOverrideWithSameName')
+		String shortId = mth.getMethodInfo().getShortId();
 		for (MethodNode supMth : cls.getMethods()) {
-			if (!supMth.getAccessFlags().isStatic() && supMth.getMethodInfo().getShortId().startsWith(signature)) {
+			if (supMth.getMethodInfo().getShortId().equals(shortId) && !supMth.getAccessFlags().isStatic()) {
 				return supMth;
+			}
+		}
+		// search by signature without return value and check if return value is wider type
+		for (MethodNode supMth : cls.getMethods()) {
+			if (supMth.getMethodInfo().getShortId().startsWith(signature) && !supMth.getAccessFlags().isStatic()) {
+				TypeCompare typeCompare = cls.root().getTypeCompare();
+				ArgType supRetType = supMth.getMethodInfo().getReturnType();
+				ArgType mthRetType = mth.getMethodInfo().getReturnType();
+				TypeCompareEnum res = typeCompare.compareTypes(supRetType, mthRetType);
+				if (res.isWider()) {
+					return supMth;
+				}
+				if (res == TypeCompareEnum.UNKNOWN || res == TypeCompareEnum.CONFLICT) {
+					mth.addDebugComment("Possible override for method " + supMth.getMethodInfo().getFullId());
+				}
 			}
 		}
 		return null;
@@ -261,7 +282,7 @@ public class OverrideMethodVisitor extends AbstractVisitor {
 
 	@Nullable
 	private SuperTypesData collectSuperTypes(ClassNode cls) {
-		List<ArgType> superTypes = new ArrayList<>();
+		Set<ArgType> superTypes = new LinkedHashSet<>();
 		Set<String> endTypes = new HashSet<>();
 		collectSuperTypes(cls, superTypes, endTypes);
 		if (superTypes.isEmpty()) {
@@ -270,10 +291,10 @@ public class OverrideMethodVisitor extends AbstractVisitor {
 		if (endTypes.isEmpty()) {
 			throw new JadxRuntimeException("No end types in class hierarchy: " + cls);
 		}
-		return new SuperTypesData(superTypes, endTypes);
+		return new SuperTypesData(new ArrayList<>(superTypes), endTypes);
 	}
 
-	private void collectSuperTypes(ClassNode cls, List<ArgType> superTypes, Set<String> endTypes) {
+	private void collectSuperTypes(ClassNode cls, Set<ArgType> superTypes, Set<String> endTypes) {
 		RootNode root = cls.root();
 		int k = 0;
 		ArgType superClass = cls.getSuperClass();
@@ -288,21 +309,24 @@ public class OverrideMethodVisitor extends AbstractVisitor {
 		}
 	}
 
-	private int addSuperType(RootNode root, List<ArgType> superTypesMap, Set<String> endTypes, ArgType superType) {
+	private int addSuperType(RootNode root, Set<ArgType> superTypes, Set<String> endTypes, ArgType superType) {
 		if (Objects.equals(superType, ArgType.OBJECT)) {
 			return 0;
 		}
-		superTypesMap.add(superType);
+		if (!superTypes.add(superType)) {
+			// found 'super' loop, stop processing
+			return 0;
+		}
 		ClassNode classNode = root.resolveClass(superType);
 		if (classNode != null) {
-			collectSuperTypes(classNode, superTypesMap, endTypes);
+			collectSuperTypes(classNode, superTypes, endTypes);
 			return 1;
 		}
 		ClspClass clsDetails = root.getClsp().getClsDetails(superType);
 		if (clsDetails != null) {
 			int k = 0;
 			for (ArgType parentType : clsDetails.getParents()) {
-				k += addSuperType(root, superTypesMap, endTypes, parentType);
+				k += addSuperType(root, superTypes, endTypes, parentType);
 			}
 			if (k == 0) {
 				endTypes.add(superType.getObject());
@@ -439,5 +463,10 @@ public class OverrideMethodVisitor extends AbstractVisitor {
 			}
 			k++;
 		}
+	}
+
+	@Override
+	public String getName() {
+		return "OverrideMethodVisitor";
 	}
 }

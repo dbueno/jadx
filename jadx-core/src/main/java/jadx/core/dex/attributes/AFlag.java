@@ -33,14 +33,24 @@ public enum AFlag {
 	EXC_TOP_SPLITTER,
 	EXC_BOTTOM_SPLITTER,
 	FINALLY_INSNS,
+	IGNORE_THROW_SPLIT,
 
 	SKIP_FIRST_ARG,
 	SKIP_ARG, // skip argument in invoke call
 	NO_SKIP_ARGS,
+
 	ANONYMOUS_CONSTRUCTOR,
+	INLINE_INSTANCE_FIELD,
 
 	THIS,
 	SUPER,
+
+	PACKAGE_INFO,
+
+	/**
+	 * Mark Android resources class
+	 */
+	ANDROID_R_CLASS,
 
 	/**
 	 * RegisterArg attribute for method arguments
@@ -80,7 +90,6 @@ public enum AFlag {
 
 	REQUEST_IF_REGION_OPTIMIZE, // run if region visitor again
 	REQUEST_CODE_SHRINK,
-	RERUN_SSA_TRANSFORM,
 
 	METHOD_CANDIDATE_FOR_INLINE,
 	USE_LINES_HINTS, // source lines info in methods can be trusted
@@ -96,4 +105,7 @@ public enum AFlag {
 	DONT_UNLOAD_CLASS, // don't unload class after code generation (only for tests and debug!)
 
 	BYTECODE_RANGE, // range of associated bytecodes
+
+	RESOLVE_JAVA_JSR,
+	COMPUTE_POST_DOM,
 }

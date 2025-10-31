@@ -10,9 +10,11 @@ import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 
+import jadx.api.plugins.input.data.AccessFlags;
 import jadx.core.dex.attributes.AFlag;
 import jadx.core.dex.attributes.AType;
 import jadx.core.dex.attributes.nodes.AnonymousClassAttr;
+import jadx.core.dex.attributes.nodes.AnonymousClassAttr.InlineType;
 import jadx.core.dex.info.AccessInfo;
 import jadx.core.dex.instructions.args.ArgType;
 import jadx.core.dex.nodes.ClassNode;
@@ -30,6 +32,7 @@ import jadx.core.utils.exceptions.JadxException;
 				UsageInfoVisitor.class
 		}
 )
+@SuppressWarnings("BooleanMethodIsAlwaysInverted")
 public class ProcessAnonymous extends AbstractVisitor {
 
 	private boolean inlineAnonymousClasses;
@@ -40,9 +43,7 @@ public class ProcessAnonymous extends AbstractVisitor {
 		if (!inlineAnonymousClasses) {
 			return;
 		}
-		for (ClassNode cls : root.getClasses()) {
-			markAnonymousClass(cls);
-		}
+		root.getClasses().forEach(ProcessAnonymous::processClass);
 		mergeAnonymousDeps(root);
 	}
 
@@ -56,25 +57,42 @@ public class ProcessAnonymous extends AbstractVisitor {
 	}
 
 	private void visitClassAndInners(ClassNode cls) {
-		markAnonymousClass(cls);
+		processClass(cls);
 		cls.getInnerClasses().forEach(this::visitClassAndInners);
+	}
+
+	private static void processClass(ClassNode cls) {
+		try {
+			markAnonymousClass(cls);
+		} catch (Throwable e) {
+			cls.addError("Anonymous visitor error", e);
+		}
 	}
 
 	private static void markAnonymousClass(ClassNode cls) {
 		if (!canBeAnonymous(cls)) {
 			return;
 		}
-		MethodNode anonymousConstructor = checkUsage(cls);
+		MethodNode anonymousConstructor = ListUtils.filterOnlyOne(cls.getMethods(), MethodNode::isConstructor);
 		if (anonymousConstructor == null) {
+			return;
+		}
+		InlineType inlineType = checkUsage(cls, anonymousConstructor);
+		if (inlineType == null) {
 			return;
 		}
 		ArgType baseType = getBaseType(cls);
 		if (baseType == null) {
 			return;
 		}
-		ClassNode outerCls = anonymousConstructor.getUseIn().get(0).getParentClass();
+		ClassNode outerCls;
+		if (inlineType == InlineType.INSTANCE_FIELD) {
+			outerCls = cls.getUseInMth().get(0).getParentClass();
+		} else {
+			outerCls = anonymousConstructor.getUseIn().get(0).getParentClass();
+		}
 		outerCls.addInlinedClass(cls);
-		cls.addAttr(new AnonymousClassAttr(outerCls, baseType));
+		cls.addAttr(new AnonymousClassAttr(outerCls, baseType, inlineType));
 		cls.add(AFlag.DONT_GENERATE);
 		anonymousConstructor.add(AFlag.ANONYMOUS_CONSTRUCTOR);
 
@@ -202,14 +220,11 @@ public class ProcessAnonymous extends AbstractVisitor {
 	 * Checks:
 	 * - class have only one constructor which used only once (allow common code for field init)
 	 * - methods or fields not used outside (allow only nested inner classes with synthetic usage)
+	 * - if constructor used only in class init check if possible inline by instance field
 	 *
-	 * @return anonymous constructor method
+	 * @return decided inline type
 	 */
-	private static MethodNode checkUsage(ClassNode cls) {
-		MethodNode ctr = ListUtils.filterOnlyOne(cls.getMethods(), MethodNode::isConstructor);
-		if (ctr == null) {
-			return null;
-		}
+	private static InlineType checkUsage(ClassNode cls, MethodNode ctr) {
 		if (ctr.getUseIn().size() != 1) {
 			// check if used in common field init in all constructors
 			if (!checkForCommonFieldInit(ctr)) {
@@ -219,6 +234,9 @@ public class ProcessAnonymous extends AbstractVisitor {
 		MethodNode ctrUseMth = ctr.getUseIn().get(0);
 		ClassNode ctrUseCls = ctrUseMth.getParentClass();
 		if (ctrUseCls.equals(cls)) {
+			if (checkForInstanceFieldUsage(cls, ctr)) {
+				return InlineType.INSTANCE_FIELD;
+			}
 			// exclude self usage
 			return null;
 		}
@@ -226,6 +244,20 @@ public class ProcessAnonymous extends AbstractVisitor {
 			// exclude usage inside inner classes
 			return null;
 		}
+		if (!checkMethodsUsage(cls, ctr, ctrUseMth)) {
+			return null;
+		}
+		for (FieldNode field : cls.getFields()) {
+			for (MethodNode useMth : field.getUseIn()) {
+				if (badMethodUsage(cls, useMth, field.getAccessFlags())) {
+					return null;
+				}
+			}
+		}
+		return InlineType.CONSTRUCTOR;
+	}
+
+	private static boolean checkMethodsUsage(ClassNode cls, MethodNode ctr, MethodNode ctrUseMth) {
 		for (MethodNode mth : cls.getMethods()) {
 			if (mth == ctr) {
 				continue;
@@ -235,18 +267,50 @@ public class ProcessAnonymous extends AbstractVisitor {
 					continue;
 				}
 				if (badMethodUsage(cls, useMth, mth.getAccessFlags())) {
-					return null;
+					return false;
 				}
 			}
+		}
+		return true;
+	}
+
+	private static boolean checkForInstanceFieldUsage(ClassNode cls, MethodNode ctr) {
+		MethodNode ctrUseMth = ctr.getUseIn().get(0);
+		if (!ctrUseMth.getMethodInfo().isClassInit()) {
+			return false;
+		}
+		if (cls.getUseInMth().isEmpty()) {
+			// no outside usage, inline not needed
+			return false;
+		}
+		FieldNode instFld = ListUtils.filterOnlyOne(cls.getFields(),
+				f -> f.getAccessFlags().containsFlags(AccessFlags.PUBLIC, AccessFlags.STATIC, AccessFlags.FINAL)
+						&& f.getFieldInfo().getType().equals(cls.getClassInfo().getType()));
+		if (instFld == null) {
+			return false;
+		}
+		List<MethodNode> instFldUseIn = instFld.getUseIn();
+		if (instFldUseIn.size() != 2
+				|| !instFldUseIn.contains(ctrUseMth) // initialized in class init
+				|| !instFldUseIn.containsAll(cls.getUseInMth()) // class used only with this field
+		) {
+			return false;
+		}
+		if (!checkMethodsUsage(cls, ctr, ctrUseMth)) {
+			return false;
 		}
 		for (FieldNode field : cls.getFields()) {
+			if (field == instFld) {
+				continue;
+			}
 			for (MethodNode useMth : field.getUseIn()) {
 				if (badMethodUsage(cls, useMth, field.getAccessFlags())) {
-					return null;
+					return false;
 				}
 			}
 		}
-		return ctr;
+		instFld.add(AFlag.INLINE_INSTANCE_FIELD);
+		return true;
 	}
 
 	private static boolean badMethodUsage(ClassNode cls, MethodNode useMth, AccessInfo accessFlags) {
@@ -297,6 +361,18 @@ public class ProcessAnonymous extends AbstractVisitor {
 		if (cls.root().getClsp().isImplements(superCls.getObject(), interfaceType.getObject())) {
 			return superCls;
 		}
+		if (cls.root().getArgs().isAllowInlineKotlinLambda()) {
+			if (superCls.getObject().equals("kotlin.jvm.internal.Lambda")) {
+				// Inline such class with have different semantic: missing 'arity' property.
+				// For now, it is unclear how it may affect code execution.
+				return interfaceType;
+			}
+		}
 		return null;
+	}
+
+	@Override
+	public String getName() {
+		return "ProcessAnonymous";
 	}
 }

@@ -58,7 +58,7 @@
               find $out/lib
             '';
           };
-        jdk = pkgs.jdk8;
+        jdk = pkgs.jdk11;
 		jdt-language-server = pkgs.jdt-language-server; #.override { inherit jdk; };
 		jadx = pkgs.jadx.overrideAttrs (old: { src = ./.; });
 

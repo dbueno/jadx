@@ -5,13 +5,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.stream.Collectors;
+import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jadx.api.ICodeInfo;
 import jadx.api.JadxArgs;
-import jadx.api.plugins.utils.ZipSecurity;
 import jadx.core.dex.attributes.AFlag;
 import jadx.core.dex.attributes.nodes.BytecodeInfoAttr;
 import jadx.core.dex.nodes.ClassNode;
@@ -39,13 +39,44 @@ public class SaveCode {
 		if (codeStr.isEmpty()) {
 			return;
 		}
-		if (cls.root().getArgs().isSkipFilesSave()) {
+		JadxArgs args = cls.root().getArgs();
+		if (args.isSkipFilesSave()) {
 			return;
 		}
 		String fileName = cls.getClassInfo().getAliasFullPath() + getFileExtension(cls.root());
-		save(codeStr, dir, fileName);
+		if (!args.getSecurity().isValidEntryName(fileName)) {
+			return;
+		}
+		save(codeStr, new File(dir, fileName));
 		String sarifFileName = cls.getClassInfo().getAliasFullPath() + ".json";
 		saveDecompMap(code, new File(dir, ".maps"), sarifFileName, fileName);
+	}
+
+	public static void save(ICodeInfo codeInfo, File file) {
+		save(codeInfo.getCodeStr(), file);
+	}
+
+	public static void save(String code, File file) {
+		File outFile = FileUtils.prepareFile(file);
+		try (PrintWriter out = new PrintWriter(outFile, StandardCharsets.UTF_8)) {
+			out.println(code);
+		} catch (Exception e) {
+			LOG.error("Save file error", e);
+		}
+	}
+
+	public static String getFileExtension(RootNode root) {
+		JadxArgs.OutputFormatEnum outputFormat = root.getArgs().getOutputFormat();
+		switch (outputFormat) {
+			case JAVA:
+				return ".java";
+
+			case JSON:
+				return ".json";
+
+			default:
+				throw new JadxRuntimeException("Unknown output format: " + outputFormat);
+		}
 	}
 
 	private static String formatBytecodeInfo(BytecodeInfoAttr bc) {
@@ -86,40 +117,6 @@ public class SaveCode {
 			fileWriter.write("}");
 		} catch (IOException e) {
 			System.err.println("An error occurred while writing to the file: " + e.getMessage());
-		}
-	}
-
-	public static void save(String code, File dir, String fileName) {
-		if (!ZipSecurity.isValidZipEntryName(fileName)) {
-			return;
-		}
-		save(code, new File(dir, fileName));
-	}
-
-	public static void save(ICodeInfo codeInfo, File file) {
-		save(codeInfo.getCodeStr(), file);
-	}
-
-	public static void save(String code, File file) {
-		File outFile = FileUtils.prepareFile(file);
-		try (PrintWriter out = new PrintWriter(outFile, "UTF-8")) {
-			out.println(code);
-		} catch (Exception e) {
-			LOG.error("Save file error", e);
-		}
-	}
-
-	public static String getFileExtension(RootNode root) {
-		JadxArgs.OutputFormatEnum outputFormat = root.getArgs().getOutputFormat();
-		switch (outputFormat) {
-			case JAVA:
-				return ".java";
-
-			case JSON:
-				return ".json";
-
-			default:
-				throw new JadxRuntimeException("Unknown output format: " + outputFormat);
 		}
 	}
 }

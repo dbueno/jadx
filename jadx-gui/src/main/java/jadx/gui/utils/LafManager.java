@@ -15,6 +15,8 @@ import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.intellijthemes.FlatAllIJThemes;
+import com.formdev.flatlaf.themes.FlatMacDarkLaf;
+import com.formdev.flatlaf.themes.FlatMacLightLaf;
 
 import jadx.gui.settings.JadxSettings;
 
@@ -38,8 +40,8 @@ public class LafManager {
 	public static void updateLaf(JadxSettings settings) {
 		if (setupLaf(getThemeClass(settings))) {
 			// update all components
-			FlatLaf.updateUI();
 			FlatAnimatedLafChange.hideSnapshotWithAnimation();
+			FlatLaf.updateUI();
 		}
 	}
 
@@ -68,6 +70,8 @@ public class LafManager {
 		// default flatlaf themes
 		map.put(FlatLightLaf.NAME, FlatLightLaf.class.getName());
 		map.put(FlatDarkLaf.NAME, FlatDarkLaf.class.getName());
+		map.put(FlatMacLightLaf.NAME, FlatMacLightLaf.class.getName());
+		map.put(FlatMacDarkLaf.NAME, FlatMacDarkLaf.class.getName());
 		map.put(FlatIntelliJLaf.NAME, FlatIntelliJLaf.class.getName());
 		map.put(FlatDarculaLaf.NAME, FlatDarculaLaf.class.getName());
 

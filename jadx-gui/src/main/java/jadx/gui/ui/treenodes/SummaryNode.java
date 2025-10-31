@@ -2,17 +2,22 @@ package jadx.gui.ui.treenodes;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 
 import jadx.api.ICodeInfo;
+import jadx.api.ResourceFile;
 import jadx.api.impl.SimpleCodeInfo;
 import jadx.core.dex.attributes.IAttributeNode;
 import jadx.core.dex.nodes.ClassNode;
@@ -24,9 +29,9 @@ import jadx.gui.JadxWrapper;
 import jadx.gui.treemodel.JClass;
 import jadx.gui.treemodel.JNode;
 import jadx.gui.ui.MainWindow;
-import jadx.gui.ui.TabbedPane;
 import jadx.gui.ui.panel.ContentPanel;
 import jadx.gui.ui.panel.HtmlPanel;
+import jadx.gui.ui.tab.TabbedPane;
 import jadx.gui.utils.UiUtils;
 
 public class SummaryNode extends JNode {
@@ -75,7 +80,7 @@ public class SummaryNode extends JNode {
 		List<String> codeSources = classes.stream()
 				.map(ClassNode::getInputFileName)
 				.distinct()
-				.sorted()
+				.sorted(Comparator.naturalOrder())
 				.collect(Collectors.toList());
 		codeSources.remove("synthetic");
 		int codeSourcesCount = codeSources.size();
@@ -84,16 +89,14 @@ public class SummaryNode extends JNode {
 		if (codeSourcesCount != 1) {
 			builder.append("<li>Count: " + codeSourcesCount + "</li>");
 		}
-		// dex files list
-		codeSources.removeIf(f -> !f.endsWith(".dex"));
-		if (!codeSources.isEmpty()) {
-			for (String input : codeSources) {
-				builder.append("<li>");
-				builder.escape(input);
-				builder.append("</li>");
-			}
+		for (String input : codeSources) {
+			builder.append("<li>");
+			builder.escape(input);
+			builder.append("</li>");
 		}
 		builder.append("</ul>");
+
+		addNativeLibsInfo(builder);
 
 		int methodsCount = classes.stream().mapToInt(cls -> cls.getMethods().size()).sum();
 		int fieldsCount = classes.stream().mapToInt(cls -> cls.getFields().size()).sum();
@@ -104,6 +107,50 @@ public class SummaryNode extends JNode {
 		builder.append("<li>Methods: " + methodsCount + "</li>");
 		builder.append("<li>Fields: " + fieldsCount + "</li>");
 		builder.append("<li>Instructions: " + insnCount + " (units)</li>");
+		builder.append("</ul>");
+	}
+
+	private void addNativeLibsInfo(StringEscapeUtils.Builder builder) {
+		List<String> nativeLibs = wrapper.getResources().stream()
+				.map(ResourceFile::getOriginalName)
+				.filter(f -> f.endsWith(".so"))
+				.sorted(Comparator.naturalOrder())
+				.collect(Collectors.toList());
+		builder.append("<h3>Native libs</h3>");
+		builder.append("<ul>");
+		if (nativeLibs.isEmpty()) {
+			builder.append("<li>Total count: 0</li>");
+		} else {
+			Map<String, Set<String>> libsByArch = new HashMap<>();
+			for (String libFile : nativeLibs) {
+				String[] parts = StringUtils.split(libFile, '/');
+				int count = parts.length;
+				if (count >= 2) {
+					String arch = parts[count - 2];
+					String name = parts[count - 1];
+					libsByArch.computeIfAbsent(arch, (a) -> new HashSet<>())
+							.add(name);
+				}
+			}
+			String arches = libsByArch.keySet().stream()
+					.sorted(Comparator.naturalOrder())
+					.collect(Collectors.joining(", "));
+			builder.append("<li>Arch list: " + arches + "</li>");
+
+			String perArchCount = libsByArch.entrySet().stream()
+					.map(entry -> entry.getKey() + ":" + entry.getValue().size())
+					.sorted(Comparator.naturalOrder())
+					.collect(Collectors.joining(", "));
+			builder.append("<li>Per arch count: " + perArchCount + "</li>");
+
+			builder.append("<br>");
+			builder.append("<li>Total count: " + nativeLibs.size() + "</li>");
+			for (String lib : nativeLibs) {
+				builder.append("<li>");
+				builder.escape(lib);
+				builder.append("</li>");
+			}
+		}
 		builder.append("</ul>");
 	}
 

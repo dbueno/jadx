@@ -1,10 +1,13 @@
 package jadx.gui.search.providers;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.swing.Icon;
 
+import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -38,22 +41,21 @@ public class CommentSearchProvider implements ISearchProvider {
 	private final CacheObject cacheObject;
 	private final JadxProject project;
 	private final SearchSettings searchSettings;
+	private final Set<JavaClass> searchClsSet;
 
 	private int progress = 0;
 
-	public CommentSearchProvider(MainWindow mw, SearchSettings searchSettings) {
+	public CommentSearchProvider(MainWindow mw, SearchSettings searchSettings, List<JavaClass> searchClasses) {
 		this.wrapper = mw.getWrapper();
 		this.cacheObject = mw.getCacheObject();
 		this.project = mw.getProject();
 		this.searchSettings = searchSettings;
+		this.searchClsSet = new HashSet<>(searchClasses);
 	}
 
 	@Override
 	public @Nullable JNode next(Cancelable cancelable) {
-		while (true) {
-			if (cancelable.isCanceled()) {
-				return null;
-			}
+		while (!cancelable.isCanceled()) {
 			List<ICodeComment> comments = project.getCodeData().getComments();
 			if (progress >= comments.size()) {
 				return null;
@@ -64,6 +66,7 @@ public class CommentSearchProvider implements ISearchProvider {
 				return result;
 			}
 		}
+		return null;
 	}
 
 	@Nullable
@@ -71,13 +74,12 @@ public class CommentSearchProvider implements ISearchProvider {
 		boolean all = searchSettings.getSearchString().isEmpty();
 		if (all || searchSettings.isMatch(comment.getComment())) {
 			JNode refNode = getRefNode(comment);
-			if (refNode != null) {
-				JClass activeCls = searchSettings.getActiveCls();
-				if (activeCls == null || Objects.equals(activeCls, refNode.getRootClass())) {
-					return getCommentNode(comment, refNode);
-				}
-			} else {
+			if (refNode == null) {
 				LOG.warn("Failed to get ref node for comment: {}", comment);
+				return null;
+			}
+			if (searchClsSet.contains(refNode.getRootClass().getCls())) {
+				return getCommentNode(comment, refNode);
 			}
 		}
 		return null;
@@ -197,7 +199,7 @@ public class CommentSearchProvider implements ISearchProvider {
 
 		@Override
 		public String getSyntaxName() {
-			return node.getSyntaxName();
+			return SyntaxConstants.SYNTAX_STYLE_NONE; // comment is always plain text
 		}
 
 		@Override
@@ -218,6 +220,11 @@ public class CommentSearchProvider implements ISearchProvider {
 		@Override
 		public String makeLongStringHtml() {
 			return node.makeLongStringHtml();
+		}
+
+		@Override
+		public boolean disableHtml() {
+			return node.disableHtml();
 		}
 
 		@Override

@@ -1,5 +1,7 @@
 package jadx.core.dex.info;
 
+import org.intellij.lang.annotations.MagicConstant;
+
 import jadx.api.plugins.input.data.AccessFlags;
 import jadx.core.Consts;
 import jadx.core.utils.exceptions.JadxRuntimeException;
@@ -20,8 +22,19 @@ public class AccessInfo {
 		this.type = type;
 	}
 
+	@MagicConstant(valuesFromClass = AccessFlags.class)
 	public boolean containsFlag(int flag) {
 		return (accFlags & flag) != 0;
+	}
+
+	@MagicConstant(valuesFromClass = AccessFlags.class)
+	public boolean containsFlags(int... flags) {
+		for (int flag : flags) {
+			if ((accFlags & flag) == 0) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public AccessInfo remove(int flag) {
@@ -151,6 +164,10 @@ public class AccessInfo {
 		return (accFlags & AccessFlags.MODULE) != 0;
 	}
 
+	public boolean isData() {
+		return (accFlags & AccessFlags.DATA) != 0;
+	}
+
 	public AFType getType() {
 		return type;
 	}
@@ -207,6 +224,9 @@ public class AccessInfo {
 					code.append("strict ");
 				}
 				if (showHidden) {
+					if (isData()) {
+						code.append("/* data */ ");
+					}
 					if (isModuleInfo()) {
 						code.append("/* module-info */ ");
 					}

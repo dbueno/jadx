@@ -13,7 +13,6 @@ import jadx.api.JadxArgs;
 import jadx.api.metadata.ICodeAnnotation;
 import jadx.api.metadata.ICodeNodeRef;
 import jadx.api.metadata.annotations.NodeDeclareRef;
-import jadx.api.metadata.annotations.VarRef;
 import jadx.core.utils.StringUtils;
 
 public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter {
@@ -23,9 +22,6 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 	private Map<Integer, ICodeAnnotation> annotations = Collections.emptyMap();
 	private Map<Integer, List<ICodeAnnotation>> decompAnnotations = Collections.emptyMap();
 	private Map<Integer, Integer> lineMap = Collections.emptyMap();
-
-	public AnnotatedCodeWriter() {
-	}
 
 	public AnnotatedCodeWriter(JadxArgs args) {
 		super(args);
@@ -38,9 +34,9 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 
 	@Override
 	public AnnotatedCodeWriter addMultiLine(String str) {
-		if (str.contains(NL)) {
-			buf.append(str.replace(NL, NL + indentStr));
-			line += StringUtils.countMatches(str, NL);
+		if (str.contains(newLineStr)) {
+			buf.append(str.replace(newLineStr, newLineStr + indentStr));
+			line += StringUtils.countMatches(str, newLineStr);
 			offset = 0;
 		} else {
 			buf.append(str);
@@ -68,7 +64,7 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 			buf.append(cw.getCodeStr());
 			return this;
 		}
-		AnnotatedCodeWriter code = ((AnnotatedCodeWriter) cw);
+		AnnotatedCodeWriter code = (AnnotatedCodeWriter) cw;
 		line--;
 		int startPos = getLength();
 		for (Map.Entry<Integer, ICodeAnnotation> entry : code.annotations.entrySet()) {
@@ -89,7 +85,7 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 
 	@Override
 	protected void addLine() {
-		buf.append(NL);
+		buf.append(newLineStr);
 		line++;
 		offset = 0;
 	}
@@ -174,9 +170,6 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 
 	@Override
 	public ICodeInfo finish() {
-		removeFirstEmptyLine();
-		processDefinitionAnnotations();
-		validateAnnotations();
 		String code = buf.toString();
 		buf = null;
 		return new AnnotatedCodeInfo(code, lineMap, annotations, decompAnnotations);
@@ -185,30 +178,5 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 	@Override
 	public Map<Integer, ICodeAnnotation> getRawAnnotations() {
 		return annotations;
-	}
-
-	private void processDefinitionAnnotations() {
-		if (!annotations.isEmpty()) {
-			annotations.forEach((k, v) -> {
-				if (v instanceof NodeDeclareRef) {
-					NodeDeclareRef declareRef = (NodeDeclareRef) v;
-					declareRef.setDefPos(k);
-					declareRef.getNode().setDefPosition(k);
-				}
-			});
-		}
-	}
-
-	private void validateAnnotations() {
-		if (annotations.isEmpty()) {
-			return;
-		}
-		annotations.values().removeIf(v -> {
-			if (v.getAnnType() == ICodeAnnotation.AnnType.VAR_REF) {
-				VarRef varRef = (VarRef) v;
-				return varRef.getRefPos() == 0;
-			}
-			return false;
-		});
 	}
 }

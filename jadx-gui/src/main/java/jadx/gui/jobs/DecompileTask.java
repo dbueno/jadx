@@ -5,32 +5,39 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.swing.JOptionPane;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jadx.api.ICodeCache;
 import jadx.api.JavaClass;
+import jadx.api.utils.tasks.ITaskExecutor;
+import jadx.commons.app.JadxCommonEnv;
+import jadx.core.utils.tasks.TaskExecutor;
 import jadx.gui.JadxWrapper;
+import jadx.gui.ui.MainWindow;
 import jadx.gui.utils.NLS;
-import jadx.gui.utils.UiUtils;
 
 public class DecompileTask extends CancelableBackgroundTask {
 	private static final Logger LOG = LoggerFactory.getLogger(DecompileTask.class);
 
-	private static final int CLS_LIMIT = Integer.parseInt(UiUtils.getEnvVar("JADX_CLS_PROCESS_LIMIT", "50"));
+	private static final int CLS_LIMIT = JadxCommonEnv.getInt("JADX_CLS_PROCESS_LIMIT", 50);
 
 	public static int calcDecompileTimeLimit(int classCount) {
 		return classCount * CLS_LIMIT + 5000;
 	}
 
+	private final MainWindow mainWindow;
 	private final JadxWrapper wrapper;
 	private final AtomicInteger complete = new AtomicInteger(0);
 	private int expectedCompleteCount;
 
 	private ProcessResult result;
 
-	public DecompileTask(JadxWrapper wrapper) {
-		this.wrapper = wrapper;
+	public DecompileTask(MainWindow mainWindow) {
+		this.mainWindow = mainWindow;
+		this.wrapper = mainWindow.getWrapper();
 	}
 
 	@Override
@@ -39,7 +46,17 @@ public class DecompileTask extends CancelableBackgroundTask {
 	}
 
 	@Override
+	public ITaskExecutor scheduleTasks() {
+		TaskExecutor executor = new TaskExecutor();
+		executor.addParallelTasks(scheduleJobs());
+		return executor;
+	}
+
 	public List<Runnable> scheduleJobs() {
+		if (mainWindow.getCacheObject().isFullDecompilationFinished()) {
+			return Collections.emptyList();
+		}
+
 		List<JavaClass> classes = wrapper.getIncludedClasses();
 		expectedCompleteCount = classes.size();
 		complete.set(0);
@@ -51,6 +68,10 @@ public class DecompileTask extends CancelableBackgroundTask {
 			LOG.error("Decompile batches build error", e);
 			return Collections.emptyList();
 		}
+		return getJobs(batches);
+	}
+
+	private List<Runnable> getJobs(List<List<JavaClass>> batches) {
 		ICodeCache codeCache = wrapper.getArgs().getCodeCache();
 		List<Runnable> jobs = new ArrayList<>(batches.size());
 		for (List<JavaClass> batch : batches) {
@@ -87,7 +108,41 @@ public class DecompileTask extends CancelableBackgroundTask {
 					+ ", time limit:{ total: " + timeLimit + "ms, per cls: " + CLS_LIMIT + "ms }"
 					+ ", status: " + taskInfo.getStatus());
 		}
-		this.result = new ProcessResult(skippedCls, taskInfo.getStatus(), timeLimit);
+		result = new ProcessResult(skippedCls, taskInfo.getStatus(), timeLimit);
+
+		wrapper.unloadClasses();
+		processDecompilationResults();
+		System.gc();
+
+		mainWindow.getCacheObject().setFullDecompilationFinished(skippedCls == 0);
+	}
+
+	private void processDecompilationResults() {
+		int skippedCls = result.getSkipped();
+		if (skippedCls == 0) {
+			return;
+		}
+		TaskStatus status = result.getStatus();
+		LOG.warn("Decompile and indexing of some classes skipped: {}, status: {}", skippedCls, status);
+		switch (status) {
+			case CANCEL_BY_USER: {
+				String reason = NLS.str("message.userCancelTask");
+				String message = NLS.str("message.indexIncomplete", reason, skippedCls);
+				JOptionPane.showMessageDialog(mainWindow, message);
+				break;
+			}
+			case CANCEL_BY_TIMEOUT: {
+				String reason = NLS.str("message.taskTimeout", result.getTimeLimit());
+				String message = NLS.str("message.indexIncomplete", reason, skippedCls);
+				JOptionPane.showMessageDialog(mainWindow, message);
+				break;
+			}
+			case CANCEL_BY_MEMORY: {
+				mainWindow.showHeapUsageBar();
+				JOptionPane.showMessageDialog(mainWindow, NLS.str("message.indexingClassesSkipped", skippedCls));
+				break;
+			}
+		}
 	}
 
 	@Override

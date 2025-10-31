@@ -8,9 +8,10 @@ import java.nio.file.StandardCopyOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jadx.api.JadxDecompiler;
 import jadx.api.ResourceFile;
 import jadx.api.ResourcesLoader;
-import jadx.api.plugins.utils.ZipSecurity;
+import jadx.api.security.IJadxSecurity;
 import jadx.core.dex.visitors.SaveCode;
 import jadx.core.utils.exceptions.JadxException;
 import jadx.core.utils.exceptions.JadxRuntimeException;
@@ -21,15 +22,21 @@ public class ResourcesSaver implements Runnable {
 
 	private final ResourceFile resourceFile;
 	private final File outDir;
+	private final IJadxSecurity security;
 
-	public ResourcesSaver(File outDir, ResourceFile resourceFile) {
+	public ResourcesSaver(JadxDecompiler decompiler, File outDir, ResourceFile resourceFile) {
 		this.resourceFile = resourceFile;
 		this.outDir = outDir;
+		this.security = decompiler.getArgs().getSecurity();
 	}
 
 	@Override
 	public void run() {
-		saveResources(resourceFile.loadContent());
+		try {
+			saveResources(resourceFile.loadContent());
+		} catch (Throwable e) {
+			LOG.warn("Failed to save resource: {}", resourceFile.getOriginalName(), e);
+		}
 	}
 
 	private void saveResources(ResContainer rc) {
@@ -48,7 +55,7 @@ public class ResourcesSaver implements Runnable {
 
 	private void save(ResContainer rc, File outDir) {
 		File outFile = new File(outDir, rc.getFileName());
-		if (!ZipSecurity.isInSubDirectory(outDir, outFile)) {
+		if (!security.isInSubDirectory(outDir, outFile)) {
 			LOG.error("Invalid resource name or path traversal attack detected: {}", outFile.getPath());
 			return;
 		}

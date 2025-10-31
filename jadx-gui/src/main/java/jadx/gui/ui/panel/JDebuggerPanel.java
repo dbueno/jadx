@@ -40,10 +40,9 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.reactivex.annotations.Nullable;
 
 import jadx.core.utils.StringUtils;
 import jadx.gui.device.debugger.DebugController;
@@ -88,6 +87,7 @@ public class JDebuggerPanel extends JPanel {
 	private transient KeyEventDispatcher controllerShortCutDispatcher;
 
 	public JDebuggerPanel(MainWindow mainWindow) {
+		UiUtils.uiThreadGuard();
 		this.mainWindow = mainWindow;
 		controller = new DebugController();
 		this.setLayout(new BorderLayout());
@@ -287,24 +287,26 @@ public class JDebuggerPanel extends JPanel {
 
 			@Override
 			public void onStateChanged(boolean suspended, boolean stopped) {
-				if (!stopped) {
-					if (isGray) {
-						stop.putValue(Action.SMALL_ICON, ICON_STOP);
+				UiUtils.uiRun(() -> {
+					if (!stopped) {
+						if (isGray) {
+							stop.putValue(Action.SMALL_ICON, ICON_STOP);
+						}
+					} else {
+						stop.putValue(Action.SMALL_ICON, ICON_STOP_GRAY);
+						run.putValue(Action.SMALL_ICON, ICON_RUN);
+						run.putValue(Action.SHORT_DESCRIPTION, NLS.str("debugger.run"));
+						isGray = true;
+						return;
 					}
-				} else {
-					stop.putValue(Action.SMALL_ICON, ICON_STOP_GRAY);
-					run.putValue(Action.SMALL_ICON, ICON_RUN);
-					run.putValue(Action.SHORT_DESCRIPTION, NLS.str("debugger.run"));
-					isGray = true;
-					return;
-				}
-				if (suspended) {
-					run.putValue(Action.SMALL_ICON, ICON_RUN);
-					run.putValue(Action.SHORT_DESCRIPTION, NLS.str("debugger.run"));
-				} else {
-					run.putValue(Action.SMALL_ICON, ICON_PAUSE);
-					run.putValue(Action.SHORT_DESCRIPTION, NLS.str("debugger.pause"));
-				}
+					if (suspended) {
+						run.putValue(Action.SMALL_ICON, ICON_RUN);
+						run.putValue(Action.SHORT_DESCRIPTION, NLS.str("debugger.run"));
+					} else {
+						run.putValue(Action.SMALL_ICON, ICON_PAUSE);
+						run.putValue(Action.SHORT_DESCRIPTION, NLS.str("debugger.pause"));
+					}
+				});
 			}
 		});
 
@@ -387,16 +389,18 @@ public class JDebuggerPanel extends JPanel {
 	public boolean showDebugger(String procName, String host, int port, int androidVer, ADBDevice device, String pid) {
 		boolean ok = controller.startDebugger(this, host, port, androidVer);
 		if (ok) {
-			log(String.format("Attached %s %s:%d", procName, host, port));
-			try {
-				logcatPanel.init(device, pid);
-			} catch (Exception e) {
-				log(NLS.str("logcat.error_fail_start"));
-				LOG.error("Logcat failed to start", e);
-			}
-			leftSplitter.setDividerLocation(mainWindow.getSettings().getDebuggerStackFrameSplitterLoc());
-			rightSplitter.setDividerLocation(mainWindow.getSettings().getDebuggerVarTreeSplitterLoc());
-			mainWindow.showDebuggerPanel();
+			UiUtils.uiRun(() -> {
+				log(String.format("Attached %s %s:%d", procName, host, port));
+				try {
+					logcatPanel.init(device, pid);
+				} catch (Exception e) {
+					log(NLS.str("logcat.error_fail_start"));
+					LOG.error("Logcat failed to start", e);
+				}
+				leftSplitter.setDividerLocation(mainWindow.getSettings().getDebuggerStackFrameSplitterLoc());
+				rightSplitter.setDividerLocation(mainWindow.getSettings().getDebuggerVarTreeSplitterLoc());
+				mainWindow.showDebuggerPanel();
+			});
 		}
 		return ok;
 	}
@@ -414,6 +418,8 @@ public class JDebuggerPanel extends JPanel {
 	}
 
 	public void loadSettings() {
+		UiUtils.uiThreadGuard();
+
 		Font font = mainWindow.getSettings().getFont();
 		variableTree.setFont(font.deriveFont(font.getSize() + 1.f));
 		variableTree.setRowHeight(-1);
@@ -423,6 +429,8 @@ public class JDebuggerPanel extends JPanel {
 	}
 
 	public void resetUI() {
+		UiUtils.uiThreadGuard();
+
 		thisTreeNode.removeAllChildren();
 		regTreeNode.removeAllChildren();
 
@@ -436,7 +444,7 @@ public class JDebuggerPanel extends JPanel {
 	}
 
 	public void scrollToSmaliLine(JClass cls, int pos, boolean debugMode) {
-		SwingUtilities.invokeLater(() -> getMainWindow().getTabbedPane().smaliJump(cls, pos, debugMode));
+		SwingUtilities.invokeLater(() -> getMainWindow().getTabsController().smaliJump(cls, pos, debugMode));
 	}
 
 	public void resetAllDebuggingInfo() {
@@ -464,12 +472,11 @@ public class JDebuggerPanel extends JPanel {
 	}
 
 	public void refreshThreadBox(List<? extends IListElement> elements) {
-		if (elements.size() > 0) {
-			DefaultComboBoxModel<IListElement> model =
-					(DefaultComboBoxModel<IListElement>) threadBox.getModel();
-			elements.forEach(model::addElement);
-		}
-		SwingUtilities.invokeLater(() -> {
+		UiUtils.uiRun(() -> {
+			if (!elements.isEmpty()) {
+				DefaultComboBoxModel<IListElement> model = (DefaultComboBoxModel<IListElement>) threadBox.getModel();
+				elements.forEach(model::addElement);
+			}
 			threadBox.updateUI();
 			stackFrameList.setFont(mainWindow.getSettings().getFont());
 		});

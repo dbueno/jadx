@@ -4,8 +4,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.IStringConverter;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 
@@ -51,6 +49,11 @@ public class LogHelper {
 			return LogLevelEnum.DEBUG;
 		}
 		return args.logLevel;
+	}
+
+	public static void setLogLevel(LogLevelEnum newLogLevel) {
+		logLevelValue = newLogLevel;
+		applyLogLevel(logLevelValue);
 	}
 
 	public static void setLogLevelsForLoadingStage() {
@@ -118,19 +121,5 @@ public class LogHelper {
 			LOG.error("Failed to detect custom log config", e);
 		}
 		return false;
-	}
-
-	public static class LogLevelConverter implements IStringConverter<LogLevelEnum> {
-
-		@Override
-		public LogLevelEnum convert(String value) {
-			try {
-				return LogLevelEnum.valueOf(value.toUpperCase());
-			} catch (Exception e) {
-				throw new IllegalArgumentException(
-						'\'' + value + "' is unknown log level, possible values are "
-								+ JadxCLIArgs.enumValuesString(LogLevelEnum.values()));
-			}
-		}
 	}
 }

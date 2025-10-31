@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -16,7 +17,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -44,12 +47,16 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ch.qos.logback.classic.Level;
+
+import jadx.api.JavaNode;
+import jadx.gui.logs.LogOptions;
 import jadx.gui.treemodel.JNode;
 import jadx.gui.treemodel.JResSearchNode;
 import jadx.gui.ui.MainWindow;
-import jadx.gui.ui.TabbedPane;
 import jadx.gui.ui.codearea.AbstractCodeArea;
 import jadx.gui.ui.panel.ProgressPanel;
+import jadx.gui.ui.tab.TabsController;
 import jadx.gui.utils.CacheObject;
 import jadx.gui.utils.JNodeCache;
 import jadx.gui.utils.JumpPosition;
@@ -64,7 +71,7 @@ public abstract class CommonSearchDialog extends JFrame {
 	private static final Logger LOG = LoggerFactory.getLogger(CommonSearchDialog.class);
 	private static final long serialVersionUID = 8939332306115370276L;
 
-	protected final transient TabbedPane tabbedPane;
+	protected final transient TabsController tabsController;
 	protected final transient CacheObject cache;
 	protected final transient MainWindow mainWindow;
 	protected final transient Font codeFont;
@@ -73,6 +80,7 @@ public abstract class CommonSearchDialog extends JFrame {
 	protected ResultsModel resultsModel;
 	protected ResultsTable resultsTable;
 	protected JLabel resultsInfoLabel;
+	protected JLabel progressInfoLabel;
 	protected JLabel warnLabel;
 	protected ProgressPanel progressPane;
 
@@ -80,7 +88,7 @@ public abstract class CommonSearchDialog extends JFrame {
 
 	public CommonSearchDialog(MainWindow mainWindow, String title) {
 		this.mainWindow = mainWindow;
-		this.tabbedPane = mainWindow.getTabbedPane();
+		this.tabsController = mainWindow.getTabsController();
 		this.cache = mainWindow.getCacheObject();
 		this.codeFont = mainWindow.getSettings().getFont();
 		this.windowTitle = title;
@@ -108,10 +116,11 @@ public abstract class CommonSearchDialog extends JFrame {
 		}
 	}
 
-	public void updateHighlightContext(String text, boolean caseSensitive, boolean regexp) {
+	public void updateHighlightContext(String text, boolean caseSensitive, boolean regexp, boolean wholeWord) {
 		updateTitle(text);
 		highlightContext = new SearchContext(text);
 		highlightContext.setMatchCase(caseSensitive);
+		highlightContext.setWholeWord(wholeWord);
 		highlightContext.setRegularExpression(regexp);
 		highlightContext.setMarkAll(true);
 	}
@@ -140,9 +149,9 @@ public abstract class CommonSearchDialog extends JFrame {
 	protected void openItem(JNode node) {
 		if (node instanceof JResSearchNode) {
 			JumpPosition jmpPos = new JumpPosition(((JResSearchNode) node).getResNode(), node.getPos());
-			tabbedPane.codeJump(jmpPos);
+			tabsController.codeJump(jmpPos);
 		} else {
-			tabbedPane.codeJump(node);
+			tabsController.codeJump(node);
 		}
 		if (!mainWindow.getSettings().getKeepCommonDialogOpen()) {
 			dispose();
@@ -173,6 +182,21 @@ public abstract class CommonSearchDialog extends JFrame {
 		UiUtils.addEscapeShortCutToDispose(this);
 	}
 
+	protected void copyAllSearchResults() {
+		StringBuilder sb = new StringBuilder();
+		Set<String> uniqueRefs = new HashSet<>();
+		for (JNode node : resultsModel.rows) {
+			JavaNode javaNode = node.getJavaNode();
+			if (javaNode != null) {
+				String codeNodeRef = javaNode.getCodeNodeRef().toString();
+				if (uniqueRefs.add(codeNodeRef)) {
+					sb.append(codeNodeRef).append("\n");
+				}
+			}
+		}
+		UiUtils.copyToClipboard(sb.toString());
+	}
+
 	@NotNull
 	protected JPanel initButtonsPanel() {
 		progressPane = new ProgressPanel(mainWindow, false);
@@ -182,6 +206,8 @@ public abstract class CommonSearchDialog extends JFrame {
 		JButton openBtn = new JButton(NLS.str("search_dialog.open"));
 		openBtn.addActionListener(event -> openSelectedItem());
 		getRootPane().setDefaultButton(openBtn);
+		JButton copyBtn = new JButton(NLS.str("search_dialog.copy"));
+		copyBtn.addActionListener(event -> copyAllSearchResults());
 
 		JCheckBox cbKeepOpen = new JCheckBox(NLS.str("search_dialog.keep_open"));
 		cbKeepOpen.setSelected(mainWindow.getSettings().getKeepCommonDialogOpen());
@@ -198,6 +224,8 @@ public abstract class CommonSearchDialog extends JFrame {
 		buttonPane.add(progressPane);
 		buttonPane.add(Box.createRigidArea(new Dimension(5, 0)));
 		buttonPane.add(Box.createHorizontalGlue());
+		buttonPane.add(copyBtn);
+		buttonPane.add(Box.createRigidArea(new Dimension(10, 0)));
 		buttonPane.add(openBtn);
 		buttonPane.add(Box.createRigidArea(new Dimension(10, 0)));
 		buttonPane.add(cancelButton);
@@ -260,6 +288,15 @@ public abstract class CommonSearchDialog extends JFrame {
 		resultsInfoLabel = new JLabel("");
 		resultsInfoLabel.setFont(mainWindow.getSettings().getFont());
 
+		progressInfoLabel = new JLabel("");
+		progressInfoLabel.setFont(mainWindow.getSettings().getFont());
+		progressInfoLabel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				mainWindow.showLogViewer(LogOptions.allWithLevel(Level.INFO));
+			}
+		});
+
 		JPanel resultsActionsPanel = new JPanel();
 		resultsActionsPanel.setLayout(new BoxLayout(resultsActionsPanel, BoxLayout.LINE_AXIS));
 		resultsActionsPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
@@ -276,6 +313,8 @@ public abstract class CommonSearchDialog extends JFrame {
 	protected void addResultsActions(JPanel resultsActionsPanel) {
 		resultsActionsPanel.add(Box.createRigidArea(new Dimension(20, 0)));
 		resultsActionsPanel.add(resultsInfoLabel);
+		resultsActionsPanel.add(Box.createRigidArea(new Dimension(20, 0)));
+		resultsActionsPanel.add(progressInfoLabel);
 		resultsActionsPanel.add(Box.createHorizontalGlue());
 	}
 
@@ -346,6 +385,15 @@ public abstract class CommonSearchDialog extends JFrame {
 		@Override
 		public Object getValueAt(int row, int column) {
 			return model.getValueAt(row, column);
+		}
+
+		@Override
+		public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+			// ResultsTable only has two wide columns, the default increment is way too fast
+			if (orientation == SwingConstants.HORIZONTAL) {
+				return 30;
+			}
+			return super.getScrollableUnitIncrement(visibleRect, orientation, direction);
 		}
 	}
 
@@ -424,8 +472,8 @@ public abstract class CommonSearchDialog extends JFrame {
 		}
 
 		@Override
-		public Component getTableCellRendererComponent(JTable table, Object obj,
-				boolean isSelected, boolean hasFocus, int row, int column) {
+		public Component getTableCellRendererComponent(JTable table, Object obj, boolean isSelected, boolean hasFocus, int row,
+				int column) {
 			if (obj == null || table == null) {
 				return emptyLabel;
 			}
@@ -454,10 +502,10 @@ public abstract class CommonSearchDialog extends JFrame {
 
 		private Component makeCell(JNode node, int column) {
 			if (column == 0) {
+				label.disableHtml(node.disableHtml());
 				label.setText(node.makeLongStringHtml());
 				label.setToolTipText(node.getTooltip());
 				label.setIcon(node.getIcon());
-				label.disableHtml(node.disableHtml());
 				return label;
 			}
 			if (!node.hasDescString()) {

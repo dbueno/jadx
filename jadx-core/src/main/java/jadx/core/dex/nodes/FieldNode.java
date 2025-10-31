@@ -3,6 +3,7 @@ package jadx.core.dex.nodes;
 import java.util.Collections;
 import java.util.List;
 
+import jadx.api.JavaField;
 import jadx.api.plugins.input.data.IFieldData;
 import jadx.core.dex.attributes.nodes.NotificationAttrNode;
 import jadx.core.dex.info.AccessInfo;
@@ -11,7 +12,7 @@ import jadx.core.dex.info.FieldInfo;
 import jadx.core.dex.instructions.args.ArgType;
 import jadx.core.utils.ListUtils;
 
-public class FieldNode extends NotificationAttrNode implements ICodeNode {
+public class FieldNode extends NotificationAttrNode implements ICodeNode, IFieldInfoRef {
 
 	private final ClassNode parentClass;
 	private final FieldInfo fieldInfo;
@@ -20,6 +21,8 @@ public class FieldNode extends NotificationAttrNode implements ICodeNode {
 	private ArgType type;
 
 	private List<MethodNode> useIn = Collections.emptyList();
+
+	private JavaField javaNode;
 
 	public static FieldNode build(ClassNode cls, IFieldData fieldData) {
 		FieldInfo fieldInfo = FieldInfo.fromRef(cls.root(), fieldData);
@@ -35,10 +38,15 @@ public class FieldNode extends NotificationAttrNode implements ICodeNode {
 		this.accFlags = new AccessInfo(accessFlags, AFType.FIELD);
 	}
 
+	public void unload() {
+		unloadAttributes();
+	}
+
 	public void updateType(ArgType type) {
 		this.type = type;
 	}
 
+	@Override
 	public FieldInfo getFieldInfo() {
 		return fieldInfo;
 	}
@@ -69,12 +77,18 @@ public class FieldNode extends NotificationAttrNode implements ICodeNode {
 		return fieldInfo.getAlias();
 	}
 
+	@Override
 	public void rename(String alias) {
 		fieldInfo.setAlias(alias);
 	}
 
 	public ArgType getType() {
 		return type;
+	}
+
+	@Override
+	public ClassNode getDeclaringClass() {
+		return parentClass;
 	}
 
 	public ClassNode getParentClass() {
@@ -110,6 +124,14 @@ public class FieldNode extends NotificationAttrNode implements ICodeNode {
 	@Override
 	public RootNode root() {
 		return parentClass.root();
+	}
+
+	public JavaField getJavaNode() {
+		return javaNode;
+	}
+
+	public void setJavaNode(JavaField javaNode) {
+		this.javaNode = javaNode;
 	}
 
 	@Override
