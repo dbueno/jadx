@@ -68,24 +68,16 @@
         };
         defaultPackage = jadx;
         devShell =
-          let
-            dev-python = pkgs.python39.withPackages (python-packages: with python-packages; [
-              wheel
-              networkx
-              python-igraph
-              # other python packages you want
-            ]);
-          in
           pkgs.mkShell {
             inputsFrom = [ pkgs.jadx ];
-            packages = [ dev-python jdk jdt-language-server ] ++ (with pkgs; [ ]);
+            packages = [ jdk jdt-language-server ] ++ (with pkgs; [ python3 ]);
             hardeningDisable = [ "all" ];
             shellHook = ''
 			  export ECLIPSE_FORMATTER_URL="`pwd`/config/code-formatter/eclipse.xml"
               export JAVA_HOME="${jdk.home}"
               export JAVA8_HOME="${pkgs.jdk8.home}"
               export JAVA11_HOME="${pkgs.jdk11.home}"
-              export PYTHONPATH=${dev-python}/${dev-python.sitePackages}
+              export PYTHONPATH=${pkgs.python3}/${pkgs.python3.sitePackages}
             '';
           };
       });
