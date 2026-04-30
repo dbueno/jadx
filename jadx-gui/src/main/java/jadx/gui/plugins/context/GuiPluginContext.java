@@ -245,10 +245,10 @@ public class GuiPluginContext implements JadxGuiContext {
 
 	@Override
 	public void addHighlight(int startCharOffset, int endCharOffset) {
-		CodeArea ca = getCodeArea();
-		if (ca != null) {
+		JTextArea textArea = getActiveTextArea();
+		if (textArea != null) {
 			try {
-				ca.getHighlighter().addHighlight(startCharOffset, endCharOffset,
+				textArea.getHighlighter().addHighlight(startCharOffset, endCharOffset,
 						new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW));
 			} catch (BadLocationException e) {
 				// Do nothing
@@ -258,9 +258,9 @@ public class GuiPluginContext implements JadxGuiContext {
 
 	@Override
 	public void clearHighlights() {
-		CodeArea ca = getCodeArea();
-		if (ca != null) {
-			ca.getHighlighter().removeAllHighlights();
+		JTextArea textArea = getActiveTextArea();
+		if (textArea != null) {
+			textArea.getHighlighter().removeAllHighlights();
 		}
 	}
 
