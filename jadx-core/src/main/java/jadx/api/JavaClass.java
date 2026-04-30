@@ -248,6 +248,14 @@ public final class JavaClass implements JavaNode {
 		return getCodeInfo().getCodeMetadata().getLineMapping().get(decompiledLine);
 	}
 
+	public List<Integer> getCodeOffsetsForLine(int decompiledLine) {
+		return getCodeInfo().getCodeMetadata().getCodeOffsetsForLine(decompiledLine);
+	}
+
+	public @Nullable Integer getDecompiledLineForCodeOffset(int codeOffset) {
+		return getCodeInfo().getCodeMetadata().getLineForCodeOffset(codeOffset);
+	}
+
 	@Override
 	public String getName() {
 		return cls.getShortName();

@@ -139,6 +139,9 @@ public abstract class InsnArg extends Typed {
 			arg.setType(oldArg.getType());
 		}
 		parent.setArg(i, arg);
+		if (!arg.isInsnWrap()) {
+			parent.addSourceOffsetsFrom(insn);
+		}
 		InsnRemover.unbindArgUsage(mth, oldArg);
 		if (unbind) {
 			InsnRemover.unbindArgUsage(mth, this);

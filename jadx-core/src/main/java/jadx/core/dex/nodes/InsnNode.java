@@ -14,6 +14,7 @@ import jadx.api.plugins.input.insns.InsnData;
 import jadx.core.dex.attributes.AFlag;
 import jadx.core.dex.attributes.AType;
 import jadx.core.dex.attributes.nodes.LineAttrNode;
+import jadx.core.dex.attributes.nodes.SourceOffsetsAttr;
 import jadx.core.dex.instructions.InsnType;
 import jadx.core.dex.instructions.args.ArgType;
 import jadx.core.dex.instructions.args.InsnArg;
@@ -134,6 +135,13 @@ public class InsnNode extends LineAttrNode {
 		for (int i = 0; i < count; i++) {
 			InsnArg arg = arguments.get(i);
 			if (arg == from) {
+				if (from.isRegister()) {
+					addSourceOffsetsFrom(((RegisterArg) from).getAssignInsn());
+				}
+				InsnNode wrapInsn = from.unwrap();
+				if (wrapInsn != null) {
+					addSourceOffsetsFrom(wrapInsn);
+				}
 				InsnRemover.unbindArgUsage(null, arg);
 				setArg(i, to);
 				return true;
@@ -192,7 +200,60 @@ public class InsnNode extends LineAttrNode {
 	}
 
 	public void setOffset(int offset) {
+		int prevOffset = this.offset;
 		this.offset = offset;
+		if (prevOffset >= 0 && prevOffset != offset) {
+			addSourceOffset(prevOffset);
+		}
+	}
+
+	public void addSourceOffset(int offset) {
+		if (offset < 0 || offset == this.offset) {
+			return;
+		}
+		SourceOffsetsAttr attr = get(AType.SOURCE_OFFSETS);
+		if (attr == null) {
+			attr = new SourceOffsetsAttr();
+			addAttr(attr);
+		}
+		attr.add(offset);
+	}
+
+	public void addSourceOffsets(Collection<Integer> offsets) {
+		if (offsets == null || offsets.isEmpty()) {
+			return;
+		}
+		for (Integer offset : offsets) {
+			if (offset != null) {
+				addSourceOffset(offset);
+			}
+		}
+	}
+
+	public void addSourceOffsetsFrom(InsnNode sourceInsn) {
+		if (sourceInsn == null || sourceInsn == this) {
+			return;
+		}
+		addSourceOffsets(sourceInsn.getSourceOffsets());
+	}
+
+	public List<Integer> getSourceOffsets() {
+		if (offset < 0) {
+			SourceOffsetsAttr attr = get(AType.SOURCE_OFFSETS);
+			return attr == null ? Collections.<Integer>emptyList() : attr.getOffsets();
+		}
+		SourceOffsetsAttr attr = get(AType.SOURCE_OFFSETS);
+		if (attr == null) {
+			return Collections.singletonList(offset);
+		}
+		List<Integer> offsets = new ArrayList<>(attr.getOffsets().size() + 1);
+		offsets.add(offset);
+		for (Integer extraOffset : attr.getOffsets()) {
+			if (extraOffset != null && extraOffset != offset) {
+				offsets.add(extraOffset);
+			}
+		}
+		return offsets;
 	}
 
 	public void getRegisterArgs(Collection<RegisterArg> collection) {
@@ -429,6 +490,7 @@ public class InsnNode extends LineAttrNode {
 	public void copyAttributesFrom(InsnNode attrNode) {
 		super.copyAttributesFrom(attrNode);
 		this.addSourceLineFrom(attrNode);
+		this.addSourceOffsetsFrom(attrNode);
 	}
 
 	/**
@@ -553,6 +615,7 @@ public class InsnNode extends LineAttrNode {
 			this.copyAttributeFrom(sourceInsn, AType.CODE_COMMENTS);
 			this.addSourceLineFrom(sourceInsn);
 		}
+		this.addSourceOffsetsFrom(sourceInsn);
 	}
 
 	/**

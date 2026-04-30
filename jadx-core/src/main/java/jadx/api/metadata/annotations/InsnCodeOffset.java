@@ -1,5 +1,9 @@
 package jadx.api.metadata.annotations;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.jetbrains.annotations.Nullable;
 
 import jadx.api.ICodeWriter;
@@ -32,17 +36,35 @@ public class InsnCodeOffset implements ICodeAnnotation {
 		if (offset < 0) {
 			return null;
 		}
-		return new InsnCodeOffset(offset);
+		List<Integer> offsets = new ArrayList<>();
+		insn.visitInsns(currentInsn -> {
+			for (Integer sourceOffset : currentInsn.getSourceOffsets()) {
+				if (!offsets.contains(sourceOffset)) {
+					offsets.add(sourceOffset);
+				}
+			}
+		});
+		return new InsnCodeOffset(offset, offsets);
 	}
 
 	private final int offset;
+	private final List<Integer> offsets;
 
 	public InsnCodeOffset(int offset) {
+		this(offset, Collections.singletonList(offset));
+	}
+
+	public InsnCodeOffset(int offset, List<Integer> offsets) {
 		this.offset = offset;
+		this.offsets = Collections.unmodifiableList(new ArrayList<>(offsets));
 	}
 
 	public int getOffset() {
 		return offset;
+	}
+
+	public List<Integer> getOffsets() {
+		return offsets;
 	}
 
 	@Override
@@ -52,6 +74,6 @@ public class InsnCodeOffset implements ICodeAnnotation {
 
 	@Override
 	public String toString() {
-		return "offset=" + offset;
+		return "offset=" + offset + ", sourceOffsets=" + offsets;
 	}
 }

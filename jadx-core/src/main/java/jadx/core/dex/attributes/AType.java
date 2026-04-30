@@ -33,6 +33,7 @@ import jadx.core.dex.attributes.nodes.RegDebugInfoAttr;
 import jadx.core.dex.attributes.nodes.RegionRefAttr;
 import jadx.core.dex.attributes.nodes.RenameReasonAttr;
 import jadx.core.dex.attributes.nodes.SkipMethodArgsAttr;
+import jadx.core.dex.attributes.nodes.SourceOffsetsAttr;
 import jadx.core.dex.attributes.nodes.SpecialEdgeAttr;
 import jadx.core.dex.attributes.nodes.TmpEdgeAttr;
 import jadx.core.dex.nodes.IMethodDetails;
@@ -105,6 +106,7 @@ public final class AType<T extends IJadxAttribute> implements IJadxAttrType<T> {
 	public static final AType<IMethodDetails> METHOD_DETAILS = new AType<>();
 	public static final AType<GenericInfoAttr> GENERIC_INFO = new AType<>();
 	public static final AType<RegionRefAttr> REGION_REF = new AType<>();
+	public static final AType<SourceOffsetsAttr> SOURCE_OFFSETS = new AType<>();
 
 	// register
 	public static final AType<RegDebugInfoAttr> REG_DEBUG_INFO = new AType<>();
