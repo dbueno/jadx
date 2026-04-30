@@ -1,7 +1,9 @@
 package jadx.api.impl;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -10,6 +12,7 @@ import jadx.api.ICodeWriter;
 import jadx.api.JadxArgs;
 import jadx.api.metadata.ICodeAnnotation;
 import jadx.api.metadata.ICodeNodeRef;
+import jadx.api.metadata.annotations.InsnCodeOffset;
 import jadx.api.metadata.annotations.NodeDeclareRef;
 import jadx.core.utils.StringUtils;
 
@@ -19,6 +22,7 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 	private int offset;
 	private Map<Integer, ICodeAnnotation> annotations = Collections.emptyMap();
 	private Map<Integer, Integer> lineMap = Collections.emptyMap();
+	private Map<Integer, List<Integer>> lineCodeOffsets = Collections.emptyMap();
 
 	public AnnotatedCodeWriter(JadxArgs args) {
 		super(args);
@@ -72,6 +76,9 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 		for (Map.Entry<Integer, Integer> entry : code.lineMap.entrySet()) {
 			attachSourceLine(line + entry.getKey(), entry.getValue());
 		}
+		for (Map.Entry<Integer, List<Integer>> entry : code.lineCodeOffsets.entrySet()) {
+			attachLineCodeOffsets(line + entry.getKey(), entry.getValue());
+		}
 		line += code.line;
 		offset = code.offset;
 		buf.append(code.buf);
@@ -123,6 +130,9 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 		if (obj == null) {
 			return;
 		}
+		if (obj instanceof InsnCodeOffset) {
+			attachLineCodeOffsets(line, ((InsnCodeOffset) obj).getOffsets());
+		}
 		attachAnnotation(obj, getLineStartPos());
 	}
 
@@ -148,11 +158,30 @@ public class AnnotatedCodeWriter extends SimpleCodeWriter implements ICodeWriter
 		lineMap.put(decompiledLine, sourceLine);
 	}
 
+	private void attachLineCodeOffsets(int decompiledLine, List<Integer> offsets) {
+		if (offsets == null || offsets.isEmpty()) {
+			return;
+		}
+		if (lineCodeOffsets.isEmpty()) {
+			lineCodeOffsets = new TreeMap<>();
+		}
+		List<Integer> lineOffsets = lineCodeOffsets.get(decompiledLine);
+		if (lineOffsets == null) {
+			lineCodeOffsets.put(decompiledLine, new ArrayList<>(offsets));
+			return;
+		}
+		for (Integer offset : offsets) {
+			if (!lineOffsets.contains(offset)) {
+				lineOffsets.add(offset);
+			}
+		}
+	}
+
 	@Override
 	public ICodeInfo finish() {
 		String code = buf.toString();
 		buf = null;
-		return new AnnotatedCodeInfo(code, lineMap, annotations);
+		return new AnnotatedCodeInfo(code, lineMap, lineCodeOffsets, annotations);
 	}
 
 	@Override

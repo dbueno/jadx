@@ -1,10 +1,13 @@
 package jadx.core.codegen.json.cls;
 
+import java.util.List;
+
 import org.jetbrains.annotations.Nullable;
 
 public class JsonCodeLine {
 	private String code;
 	private String offset;
+	private List<String> offsets;
 	private Integer sourceLine;
 
 	public String getCode() {
@@ -21,6 +24,14 @@ public class JsonCodeLine {
 
 	public void setOffset(String offset) {
 		this.offset = offset;
+	}
+
+	public List<String> getOffsets() {
+		return offsets;
+	}
+
+	public void setOffsets(List<String> offsets) {
+		this.offsets = offsets;
 	}
 
 	public Integer getSourceLine() {

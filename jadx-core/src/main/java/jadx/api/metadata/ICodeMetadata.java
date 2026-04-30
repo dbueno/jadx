@@ -1,5 +1,7 @@
 package jadx.api.metadata;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 
@@ -56,4 +58,23 @@ public interface ICodeMetadata {
 	Map<Integer, ICodeAnnotation> getAsMap();
 
 	Map<Integer, Integer> getLineMapping();
+
+	default Map<Integer, List<Integer>> getLineCodeOffsets() {
+		return Collections.emptyMap();
+	}
+
+	default List<Integer> getCodeOffsetsForLine(int decompiledLine) {
+		List<Integer> offsets = getLineCodeOffsets().get(decompiledLine);
+		return offsets == null ? Collections.<Integer>emptyList() : offsets;
+	}
+
+	@Nullable
+	default Integer getLineForCodeOffset(int codeOffset) {
+		for (Map.Entry<Integer, List<Integer>> entry : getLineCodeOffsets().entrySet()) {
+			if (entry.getValue().contains(codeOffset)) {
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
 }

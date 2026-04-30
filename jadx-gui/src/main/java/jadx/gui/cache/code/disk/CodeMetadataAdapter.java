@@ -12,8 +12,10 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import jadx.api.ICodeInfo;
@@ -45,6 +47,7 @@ public class CodeMetadataAdapter {
 				DataOutputStream out = new DataOutputStream(new BufferedOutputStream(fileOutput))) {
 			out.write(JADX_METADATA_HEADER);
 			writeLines(out, metadata.getLineMapping());
+			writeLineCodeOffsets(out, metadata.getLineCodeOffsets());
 			writeAnnotations(out, metadata.getAsMap());
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to write metadata file", e);
@@ -59,8 +62,9 @@ public class CodeMetadataAdapter {
 				DataInputStream in = new DataInputStream(new BufferedInputStream(fileInput))) {
 			in.skipBytes(JADX_METADATA_HEADER.length);
 			Map<Integer, Integer> lines = readLines(in);
+			Map<Integer, List<Integer>> lineCodeOffsets = readLineCodeOffsets(in);
 			Map<Integer, ICodeAnnotation> annotations = readAnnotations(in);
-			return new AnnotatedCodeInfo(code, lines, annotations);
+			return new AnnotatedCodeInfo(code, lines, lineCodeOffsets, annotations);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to parse code annotations", e);
 		}
@@ -86,6 +90,36 @@ public class CodeMetadataAdapter {
 			lines.put(key, value);
 		}
 		return lines;
+	}
+
+	private void writeLineCodeOffsets(DataOutput out, Map<Integer, List<Integer>> lineCodeOffsets) throws IOException {
+		out.writeInt(lineCodeOffsets.size());
+		for (Map.Entry<Integer, List<Integer>> entry : lineCodeOffsets.entrySet()) {
+			DataAdapterHelper.writeUVInt(out, entry.getKey());
+			List<Integer> offsets = entry.getValue();
+			out.writeInt(offsets.size());
+			for (Integer offset : offsets) {
+				DataAdapterHelper.writeUVInt(out, offset);
+			}
+		}
+	}
+
+	private Map<Integer, List<Integer>> readLineCodeOffsets(DataInput in) throws IOException {
+		int size = in.readInt();
+		if (size == 0) {
+			return Collections.emptyMap();
+		}
+		Map<Integer, List<Integer>> lineCodeOffsets = new HashMap<>(size);
+		for (int i = 0; i < size; i++) {
+			int line = DataAdapterHelper.readUVInt(in);
+			int offsetsCount = in.readInt();
+			List<Integer> offsets = new ArrayList<>(offsetsCount);
+			for (int j = 0; j < offsetsCount; j++) {
+				offsets.add(DataAdapterHelper.readUVInt(in));
+			}
+			lineCodeOffsets.put(line, offsets);
+		}
+		return lineCodeOffsets;
 	}
 
 	private void writeAnnotations(DataOutputStream out, Map<Integer, ICodeAnnotation> annotations) throws IOException {

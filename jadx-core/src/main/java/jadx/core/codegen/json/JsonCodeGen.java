@@ -197,8 +197,11 @@ public class JsonCodeGen {
 			jsonCodeLine.setSourceLine(lineMapping.get(line));
 			Object obj = metadata.getAt(lineStartPos);
 			if (obj instanceof InsnCodeOffset) {
-				long offset = ((InsnCodeOffset) obj).getOffset();
+				InsnCodeOffset insnCodeOffset = (InsnCodeOffset) obj;
+				long offset = insnCodeOffset.getOffset();
 				jsonCodeLine.setOffset("0x" + Long.toHexString(mthCodeOffset + offset * 2));
+				jsonCodeLine.setOffsets(Utils.collectionMap(insnCodeOffset.getOffsets(),
+						insnOffset -> "0x" + Long.toHexString(mthCodeOffset + insnOffset * 2)));
 			}
 			codeLines.add(jsonCodeLine);
 			lineStartPos += codeLine.length() + newLineLen;

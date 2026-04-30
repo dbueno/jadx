@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
 
 import jadx.api.metadata.ICodeAnnotation;
 import jadx.api.metadata.ICodeNodeRef;
@@ -108,6 +109,14 @@ public final class JavaMethod implements JavaNode {
 
 	public String getCodeStr() {
 		return mth.getCodeStr();
+	}
+
+	public List<Integer> getCodeOffsetsForLine(int decompiledLine) {
+		return getTopParentClass().getCodeOffsetsForLine(decompiledLine);
+	}
+
+	public @Nullable Integer getDecompiledLineForCodeOffset(int codeOffset) {
+		return getTopParentClass().getDecompiledLineForCodeOffset(codeOffset);
 	}
 
 	@Override
