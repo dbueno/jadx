@@ -75,7 +75,7 @@ allprojects {
 		}
 		format("misc") {
 			target("**/*.gradle", "**/*.xml", "**/.gitignore", "**/.properties")
-			targetExclude(".gradle/**", ".idea/**", "*/build/**")
+			targetExclude(".direnv/**", ".gradle/**", ".idea/**", "*/build/**")
 			commonFormatOptions()
 		}
 	}
