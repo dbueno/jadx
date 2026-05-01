@@ -49,6 +49,14 @@ public interface JadxGuiContext {
 	void addTreePopupMenuEntry(String name, Predicate<ITreeNode> addPredicate, Consumer<ITreeNode> action);
 
 	/**
+	 * Decorate tree node label and tooltip in the main source tree.
+	 * Returned suffixes can be empty or null to skip decoration for a node.
+	 */
+	@ApiStatus.Experimental
+	void addTreeNodeDecorator(Function<ITreeNode, @Nullable String> labelSuffix,
+			@Nullable Function<ITreeNode, @Nullable String> tooltipSuffix);
+
+	/**
 	 * Attach new key binding to main window
 	 *
 	 * @param id         unique ID string
@@ -115,6 +123,11 @@ public interface JadxGuiContext {
 	 * Reload code in all open tabs
 	 */
 	void reloadAllTabs();
+
+	/**
+	 * Reload the main source tree.
+	 */
+	void reloadTree();
 
 	/*
 	 * Returns the active text area

@@ -24,6 +24,7 @@ public class CommonGuiPluginsContext {
 
 	private final List<CodePopupAction> codePopupActionList = new ArrayList<>();
 	private final List<TreePopupMenuEntry> treePopupMenuEntries = new ArrayList<>();
+	private final List<TreeNodeDecorator> treeNodeDecorators = new ArrayList<>();
 	private final List<ITreeInputCategory> treeInputCategories = new ArrayList<>();
 	private final List<ITabStatePersist> tabStatePersistAdapters = new ArrayList<>();
 	private final List<Runnable> activeNodeChangeListeners = new ArrayList<>();
@@ -54,6 +55,7 @@ public class CommonGuiPluginsContext {
 	public void reset() {
 		codePopupActionList.clear();
 		treePopupMenuEntries.clear();
+		treeNodeDecorators.clear();
 		treeInputCategories.clear();
 		activeNodeChangeListeners.clear();
 		mainWindow.resetPluginsMenu();
@@ -69,6 +71,10 @@ public class CommonGuiPluginsContext {
 
 	public List<TreePopupMenuEntry> getTreePopupMenuEntries() {
 		return treePopupMenuEntries;
+	}
+
+	public List<TreeNodeDecorator> getTreeNodeDecorators() {
+		return treeNodeDecorators;
 	}
 
 	public List<ITreeInputCategory> getTreeInputCategories() {

@@ -112,6 +112,7 @@ import jadx.gui.logs.LogCollector;
 import jadx.gui.logs.LogOptions;
 import jadx.gui.logs.LogPanel;
 import jadx.gui.plugins.context.CommonGuiPluginsContext;
+import jadx.gui.plugins.context.TreeNodeDecorator;
 import jadx.gui.plugins.context.TreePopupMenuEntry;
 import jadx.gui.plugins.mappings.RenameMappingsGui;
 import jadx.gui.plugins.quark.QuarkDialog;
@@ -1411,9 +1412,24 @@ public class MainWindow extends JFrame {
 				if (value instanceof JNode) {
 					JNode jNode = (JNode) value;
 					NodeLabel.disableHtml(this, jNode.disableHtml());
-					setText(jNode.makeStringHtml());
+					String text = jNode.makeStringHtml();
+					String tooltip = jNode.getTooltip();
+					CommonGuiPluginsContext guiPluginsContext = wrapper.getGuiPluginsContext();
+					if (guiPluginsContext != null) {
+						for (TreeNodeDecorator decorator : guiPluginsContext.getTreeNodeDecorators()) {
+							String labelSuffix = decorator.getLabelSuffix(jNode);
+							if (labelSuffix != null && !labelSuffix.isEmpty()) {
+								text += labelSuffix;
+							}
+							String tooltipSuffix = decorator.getTooltipSuffix(jNode);
+							if (tooltipSuffix != null && !tooltipSuffix.isEmpty()) {
+								tooltip = tooltip == null || tooltip.isEmpty() ? tooltipSuffix : tooltip + " | " + tooltipSuffix;
+							}
+						}
+					}
+					setText(text);
 					setIcon(jNode.getIcon());
-					setToolTipText(jNode.getTooltip());
+					setToolTipText(tooltip);
 				} else {
 					setToolTipText(null);
 				}

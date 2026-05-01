@@ -87,6 +87,12 @@ public class GuiPluginContext implements JadxGuiContext {
 		commonContext.getTreePopupMenuEntries().add(new TreePopupMenuEntry(name, addPredicate, action));
 	}
 
+	@Override
+	public void addTreeNodeDecorator(Function<ITreeNode, @Nullable String> labelSuffix,
+			@Nullable Function<ITreeNode, @Nullable String> tooltipSuffix) {
+		commonContext.getTreeNodeDecorators().add(new TreeNodeDecorator(labelSuffix, tooltipSuffix));
+	}
+
 	public void registerTreeInputCategory(ITreeInputCategory inputCategory) {
 		commonContext.getTreeInputCategories().add(inputCategory);
 	}
@@ -249,6 +255,11 @@ public class GuiPluginContext implements JadxGuiContext {
 				}
 			}
 		});
+	}
+
+	@Override
+	public void reloadTree() {
+		UiUtils.uiRun(commonContext.getMainWindow()::reloadTree);
 	}
 
 	@Override
