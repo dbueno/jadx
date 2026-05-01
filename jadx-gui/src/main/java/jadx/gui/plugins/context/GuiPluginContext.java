@@ -199,6 +199,20 @@ public class GuiPluginContext implements JadxGuiContext {
 	}
 
 	@Override
+	public @Nullable ICodeNodeRef getActiveNode() {
+		Container contentPane = commonContext.getMainWindow().getTabbedPane().getSelectedContentPanel();
+		if (contentPane instanceof ContentPanel) {
+			return ((ContentPanel) contentPane).getNode().getCodeNodeRef();
+		}
+		return null;
+	}
+
+	@Override
+	public void addActiveNodeChangeListener(Runnable listener) {
+		commonContext.addActiveNodeChangeListener(listener);
+	}
+
+	@Override
 	public boolean open(ICodeNodeRef ref) {
 		commonContext.getMainWindow().getTabsController().codeJump(getJNodeFromRef(ref));
 		return true;

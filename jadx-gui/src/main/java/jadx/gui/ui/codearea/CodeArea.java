@@ -154,6 +154,7 @@ public final class CodeArea extends AbstractCodeArea implements CodePanelSyncerA
 					setText(getCodeInfo().getCodeStr());
 					setCaretPosition(0);
 					setLoaded();
+					notifyActiveNodeChangeListeners();
 				});
 			}
 		}
@@ -163,6 +164,7 @@ public final class CodeArea extends AbstractCodeArea implements CodePanelSyncerA
 					setText(code);
 					setCaretPosition(0);
 					setLoaded();
+					notifyActiveNodeChangeListeners();
 				});
 	}
 
@@ -170,6 +172,13 @@ public final class CodeArea extends AbstractCodeArea implements CodePanelSyncerA
 	public void refresh() {
 		cachedCodeInfo = null;
 		setText(getCodeInfo().getCodeStr());
+		notifyActiveNodeChangeListeners();
+	}
+
+	private void notifyActiveNodeChangeListeners() {
+		if (getMainWindow().getWrapper().getGuiPluginsContext() != null) {
+			getMainWindow().getWrapper().getGuiPluginsContext().notifyActiveNodeChangeListeners();
+		}
 	}
 
 	@Override

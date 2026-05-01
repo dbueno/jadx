@@ -15,6 +15,7 @@ dependencies {
 
 	// import mappings
 	implementation(project(":jadx-plugins:jadx-rename-mappings"))
+	implementation(project(":jadx-plugins:jadx-highlights"))
 
 	implementation("org.jcommander:jcommander:2.0")
 	implementation("ch.qos.logback:logback-classic:1.5.21")

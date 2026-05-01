@@ -196,7 +196,14 @@ public class TabbedPane extends JTabbedPane implements ITabStatesListener {
 			}
 			lastTab = curTab;
 			curTab = tab;
+			notifyActiveNodeChangeListeners();
 		});
+	}
+
+	private void notifyActiveNodeChangeListeners() {
+		if (mainWindow.getWrapper().getGuiPluginsContext() != null) {
+			mainWindow.getWrapper().getGuiPluginsContext().notifyActiveNodeChangeListeners();
+		}
 	}
 
 	private void setLastTabAdjacentToCurTab() {
@@ -390,7 +397,10 @@ public class TabbedPane extends JTabbedPane implements ITabStatesListener {
 	public void loadSettings() {
 		for (int i = 0; i < getTabCount(); i++) {
 			((ContentPanel) getComponentAt(i)).loadSettings();
-			((TabComponent) getTabComponentAt(i)).loadSettings();
+			Component tabComponent = getTabComponentAt(i);
+			if (tabComponent instanceof TabComponent) {
+				((TabComponent) tabComponent).loadSettings();
+			}
 		}
 	}
 

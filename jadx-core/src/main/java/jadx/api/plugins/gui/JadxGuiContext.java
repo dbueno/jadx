@@ -89,6 +89,11 @@ public interface JadxGuiContext {
 
 	ICodeNodeRef getEnclosingNodeUnderMouse();
 
+	@Nullable
+	ICodeNodeRef getActiveNode();
+
+	void addActiveNodeChangeListener(Runnable listener);
+
 	/**
 	 * Jump to a code ref
 	 *

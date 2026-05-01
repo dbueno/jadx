@@ -26,6 +26,7 @@ public class CommonGuiPluginsContext {
 	private final List<TreePopupMenuEntry> treePopupMenuEntries = new ArrayList<>();
 	private final List<ITreeInputCategory> treeInputCategories = new ArrayList<>();
 	private final List<ITabStatePersist> tabStatePersistAdapters = new ArrayList<>();
+	private final List<Runnable> activeNodeChangeListeners = new ArrayList<>();
 
 	public CommonGuiPluginsContext(MainWindow mainWindow) {
 		this.mainWindow = mainWindow;
@@ -54,6 +55,7 @@ public class CommonGuiPluginsContext {
 		codePopupActionList.clear();
 		treePopupMenuEntries.clear();
 		treeInputCategories.clear();
+		activeNodeChangeListeners.clear();
 		mainWindow.resetPluginsMenu();
 	}
 
@@ -75,6 +77,20 @@ public class CommonGuiPluginsContext {
 
 	public List<ITabStatePersist> getTabStatePersistAdapters() {
 		return tabStatePersistAdapters;
+	}
+
+	public void addActiveNodeChangeListener(Runnable listener) {
+		activeNodeChangeListeners.add(listener);
+	}
+
+	public void notifyActiveNodeChangeListeners() {
+		for (Runnable listener : activeNodeChangeListeners) {
+			try {
+				listener.run();
+			} catch (Exception e) {
+				LOG.error("Error running active node change listener", e);
+			}
+		}
 	}
 
 	public void addMenuAction(String name, Runnable action) {
