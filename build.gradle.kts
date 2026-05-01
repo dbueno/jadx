@@ -18,6 +18,7 @@ println("jadx version: $jadxVersion")
 version = jadxVersion
 
 val jadxBuildJavaVersion by extra { getBuildJavaVersion() }
+val spotlessEclipseVersion = providers.gradleProperty("spotlessEclipseVersion").orNull ?: "4.33"
 
 fun getBuildJavaVersion(): Int? {
 	val envVarName = "JADX_BUILD_JAVA_VERSION"
@@ -61,7 +62,7 @@ allprojects {
 	configure<SpotlessExtension> {
 		java {
 			importOrderFile("$rootDir/config/code-formatter/eclipse.importorder")
-			eclipse().configFile("$rootDir/config/code-formatter/eclipse.xml")
+			eclipse(spotlessEclipseVersion).configFile("$rootDir/config/code-formatter/eclipse.xml")
 			removeUnusedImports()
 			commonFormatOptions()
 		}
